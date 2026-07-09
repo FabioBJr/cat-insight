@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>CAT — Acidentes de Trabalho no TESTE</title>
+	<link rel="stylesheet" href="css/style.css" />
+	<link rel="preconnect" href="https://fonts.googleapis.com" />
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+	<!-- ===================== HEADER ===================== -->
+	<header class="header">
+		<div class="header-brand">
+			<div class="header-logo">CAT</div>
+			<div>
+				<div class="header-title">Acidentes de Trabalho no Brasil</div>
+				<div class="header-subtitle">Plataforma de Consulta Pública</div>
+			</div>
+		</div>
+		<div class="header-source">
+			<span class="header-source-dot"></span>
+			Fonte: INSS / dados.gov.br
+		</div>
+	</header>
+
+	<!-- ===================== HERO ===================== -->
+	<section class="hero">
+		<span class="eyebrow">Dados Abertos</span>
+		<h1 class="hero-headline">
+			Transparência é o primeiro passo para
+			<span class="highlight">proteger vidas</span> no trabalho.
+		</h1>
+		<p class="hero-description">
+			Consulte os registros de Comunicação de Acidente de Trabalho (CAT) compilados pelo INSS.
+			Dados públicos organizados por município para fiscalização e pesquisa.
+		</p>
+		<div class="stats-grid">
+			<div class="stat-card">
+				<div class="stat-label">Total de Registros CAT</div>
+				<div class="stat-value" id="stat-total">—</div>
+				<div class="stat-description">acidentes registrados</div>
+			</div>
+			<div class="stat-card">
+				<div class="stat-label">Fatalidades Registradas</div>
+				<div class="stat-value danger" id="stat-obitos">—</div>
+				<div class="stat-description">óbitos confirmados</div>
+			</div>
+			<div class="stat-card">
+				<div class="stat-label">Período Coberto</div>
+				<div class="stat-value" id="stat-periodo">—</div>
+				<div class="stat-description">5 anos de dados</div>
+			</div>
+		</div>
+	</section>
+
+	<hr class="section-divider" />
+
+	<!-- ===================== GRÁFICOS NACIONAIS ===================== -->
+	<section class="charts-section">
+		<div class="charts-section-header">
+			<span class="eyebrow">Panorama Nacional</span>
+			<h2>Quem são os mais afetados?</h2>
+			<p>Distribuição nacional de acidentes por profissão e faixa etária — 2019 a 2023.</p>
+		</div>
+
+		<div class="charts-grid">
+			<!-- Profissões -->
+			<div class="chart-card">
+				<div class="chart-card-header">
+					<span class="chart-dot accent"></span>
+					<span class="chart-card-title">Profissões com mais acidentes</span>
+					<span class="chart-card-subtitle">total de registros</span>
+				</div>
+				<canvas id="chart-profissoes" class="bar-chart"></canvas>
+			</div>
+
+			<!-- Faixa etária -->
+			<div class="chart-card">
+				<div class="chart-card-header">
+					<span class="chart-dot blue"></span>
+					<span class="chart-card-title">Acidentes por faixa etária</span>
+					<span class="chart-card-subtitle">total de registros</span>
+				</div>
+				<canvas id="chart-faixa" class="bar-chart"></canvas>
+			</div>
+		</div>
+	</section>
+
+	<hr class="section-divider" />
+
+	<!-- ===================== BUSCA ===================== -->
+	<section class="search-section">
+		<span class="eyebrow">Consulta por Município</span>
+		<h2>Buscar município</h2>
+		<p class="search-description">
+			Digite o nome de um município para filtrar os dados. Clique em uma linha para ver o perfil completo.
+		</p>
+		<div class="search-wrapper">
+			<input
+				type="text"
+				id="search-input"
+				class="search-input"
+				placeholder="Digite o nome do município..."
+				autocomplete="off"
+				aria-label="Buscar município"
+			/>
+			<button id="search-btn" class="search-btn">Buscar</button>
+			<div id="autocomplete-dropdown" class="autocomplete-dropdown"></div>
+		</div>
+	</section>
+
+	<!-- ===================== TABELA ===================== -->
+	<section class="results-section">
+		<div class="results-header">
+			<div>
+				<span class="eyebrow">Resultados</span>
+				<h2>Acidentes por município</h2>
+			</div>
+			<div id="results-count" class="results-count">Carregando...</div>
+		</div>
+		<div class="table-wrapper">
+			<table class="data-table">
+				<thead>
+					<tr>
+						<th>Município</th>
+						<th>UF</th>
+						<th>Total de Acidentes</th>
+						<th>Fatalidades</th>
+						
+						<th>Período</th>
+					</tr>
+				</thead>
+				<tbody id="table-body"></tbody>
+			</table>
+		</div>
+	</section>
+
+	<hr class="section-divider" />
+
+	<!-- ===================== INFO ===================== -->
+	<section class="info-section">
+		<div class="info-grid">
+			<div class="info-card">
+				<span class="eyebrow">Sobre o Projeto</span>
+				<h3>O que é o CAT?</h3>
+				<p>
+					A <strong>Comunicação de Acidente de Trabalho (CAT)</strong> é um documento obrigatório
+					emitido pelo empregador ao INSS sempre que um trabalhador sofre acidente de trabalho,
+					acidente de trajeto ou doença ocupacional. Seu registro é exigido por lei e constitui
+					uma das principais fontes de dados sobre saúde e segurança do trabalho no Brasil.
+				</p>
+				<p>
+					Esta plataforma consolida e disponibiliza esses registros de forma acessível, permitindo
+					que pesquisadores, gestores públicos e cidadãos consultem os dados por município e período,
+					contribuindo para políticas de prevenção mais eficazes.
+				</p>
+			</div>
+			<div class="info-card">
+				<span class="eyebrow">Dados Abertos</span>
+				<h3>Fonte dos dados</h3>
+				<p>
+					Os dados são provenientes do portal de dados abertos do governo federal e
+					disponibilizados pelo INSS. São atualizados periodicamente e colocados à disposição
+					pública em conformidade com a <strong>Lei de Acesso à Informação (LAI)</strong>.
+				</p>
+				<a
+					href="https://dados.gov.br/dados/conjuntos-dados/inss-comunicacao-de-acidente-de-trabalho-cat1"
+					target="_blank" rel="noopener noreferrer"
+					class="info-link"
+				>
+					<span>↗</span> Acessar dados no dados.gov.br
+				</a>
+			</div>
+		</div>
+	</section>
+
+	<!-- ===================== FOOTER ===================== -->
+	<footer class="footer">
+		<div class="footer-brand">
+			<div class="footer-logo">CAT</div>
+			CAT — Acidentes de Trabalho no Brasil
+		</div>
+		<div class="footer-meta">Engenharia de Computação — UFRGS · 2025</div>
+	</footer>
+
+	<!-- ===================== MODAL ===================== -->
+	<div id="modal-overlay" class="modal-overlay">
+		<div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+			<button id="modal-close" class="modal-close" aria-label="Fechar">✕</button>
+
+			<div class="modal-header">
+				<div class="modal-title-row">
+					<h2 class="modal-title" id="modal-title">—</h2>
+					<span class="modal-uf" id="modal-uf">—</span>
+				</div>
+			</div>
+
+			<div class="modal-stats-grid">
+				<div class="modal-stat">
+					<div class="modal-stat-label">Total de Acidentes</div>
+					<div class="modal-stat-value" id="modal-acidentes">—</div>
+				</div>
+				<div class="modal-stat">
+					<div class="modal-stat-label">Fatalidades</div>
+					<div class="modal-stat-value danger" id="modal-fatalidades">—</div>
+				</div>
+			</div>
+
+			<div class="modal-section">
+				<div class="modal-section-title">Profissão mais afetada</div>
+				<div class="modal-profissao">
+					<span class="modal-profissao-icon">⚠️</span>
+					<div>
+						<div class="modal-profissao-name" id="modal-profissao">—</div>
+						<div class="modal-profissao-sub">categoria com mais registros CAT no município</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="modal-section">
+				<div class="modal-section-title">Evolução anual de acidentes (2019–2023)</div>
+				<canvas id="modal-chart"></canvas>
+			</div>
+		</div>
+	</div>
+
+	<!-- Loading overlay -->
+	<div id="loading-overlay" class="loading-overlay">
+		<div class="loading-box">
+			<div class="loading-spinner"></div>
+			<div class="loading-title">Carregando dados do CAT</div>
+			<div id="loading-message" class="loading-message">Iniciando…</div>
+		</div>
+	</div>
+
+	<!-- Scripts — carregados na ordem das dependências -->
+	<script src="js/cboMap.js"></script>
+	<script src="js/data.js"></script>
+	<script src="js/structures.js"></script>
+	<script src="js/search.js"></script>
+	<script src="js/charts.js"></script>
+	<script src="js/ui.js"></script>
+	<script src="js/csvLoader.js"></script>
+	<script src="js/main.js"></script>
+</body>
+</html>
