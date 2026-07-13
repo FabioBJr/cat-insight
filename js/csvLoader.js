@@ -1,9 +1,44 @@
 // ============================================================
-// csvLoader.js — Carrega e normaliza os CSVs do CAT
+// csvLoader.js - Carrega e normaliza os CSVs do CAT
 // ============================================================
 
 const CSV_FILES = [
-  'data/cat-comp10-11-12-2019.csv',
+  'data/D.SDA.PDA.005.CAT.202201.csv',
+  'data/D.SDA.PDA.005.CAT.202204.csv',
+  'data/D.SDA.PDA.005.CAT.202207.csv',
+  'data/D.SDA.PDA.005.CAT.202208.csv',
+  'data/D.SDA.PDA.005.CAT.202209.csv',
+  'data/D.SDA.PDA.005.CAT.202210.csv',
+  'data/D.SDA.PDA.005.CAT.202211.csv',
+  'data/D.SDA.PDA.005.CAT.202212.csv',
+  'data/D.SDA.PDA.005.CAT.202301.csv',
+  'data/D.SDA.PDA.005.CAT.202302.csv',
+  'data/D.SDA.PDA.005.CAT.202303.csv',
+  'data/D.SDA.PDA.005.CAT.202304.csv',
+  'data/D.SDA.PDA.005.CAT.202305.csv',
+  'data/D.SDA.PDA.005.CAT.202306.csv',
+  'data/D.SDA.PDA.005.CAT.202307.csv',
+  'data/D.SDA.PDA.005.CAT.202308.csv',
+  'data/D.SDA.PDA.005.CAT.202309.csv',
+  'data/D.SDA.PDA.005.CAT.202310.csv',
+  'data/D.SDA.PDA.005.CAT.202311.csv',
+  'data/D.SDA.PDA.005.CAT.202312.csv',
+  'data/D.SDA.PDA.005.CAT.202401.csv',
+  'data/D.SDA.PDA.005.CAT.202402.csv',
+  'data/D.SDA.PDA.005.CAT.202403.csv',
+  'data/D.SDA.PDA.005.CAT.202404.csv',
+  'data/D.SDA.PDA.005.CAT.202405.csv',
+  'data/D.SDA.PDA.005.CAT.202406.csv',
+  'data/D.SDA.PDA.005.CAT.202407.csv',
+  'data/D.SDA.PDA.005.CAT.202408.csv',
+  'data/D.SDA.PDA.005.CAT.202409.csv',
+  'data/D.SDA.PDA.005.CAT.202410.csv',
+  'data/D.SDA.PDA.005.CAT.202411.csv',
+  'data/D.SDA.PDA.005.CAT.202412.csv',
+  'data/D.SDA.PDA.005.CAT.202501.csv',
+  'data/D.SDA.PDA.005.CAT.202502.csv',
+  'data/D.SDA.PDA.005.CAT.202503.csv',
+  'data/D.SDA.PDA.005.CAT.202504.csv',
   'data/D.SDA.PDA.005.CAT.202505.csv',
   'data/D.SDA.PDA.005.CAT.202506.csv',
   'data/D.SDA.PDA.005.CAT.202507.csv',
@@ -38,7 +73,6 @@ function detectFormat(headers) {
   return formato;
 }
 
-// BUG CORRIGIDO: nome da função era "extractYear" — agora "extractAno"
 function extractAno(dataStr) {
   const s = clean(dataStr);
   if (!s || s === '0000/00' || s === '00/00/0000') return null;
@@ -51,11 +85,22 @@ function extractAno(dataStr) {
 function parseMunicipio(val) {
   const s = clean(val);
   const dash = s.indexOf('-');
-  if (dash === -1) return { codigo: '', nome: s };
-  return {
-    codigo: s.slice(0, dash).trim(),
-    nome:   s.slice(dash + 1).trim(),
-  };
+  
+  let codigo = '';
+  let nome = s;
+
+  if (dash !== -1) {
+    codigo = s.slice(0, dash).trim();
+    nome = s.slice(dash + 1).trim();
+  } else {
+    nome = s.trim();
+  }
+
+  if (nome.toLowerCase() === 'ignorado' || nome.includes('{ñ') || !nome) {
+    nome = 'Municípios não informados';
+  }
+
+  return { codigo, nome };
 }
 
 function parseCBO(val) {
@@ -97,7 +142,6 @@ function converteLinha(valores, headers, formato) {
     tipoAcidente: get('Tipo do Acidente'),
     parteCorpo:   get('Parte Corpo Atingida'),
     natureza:     get('Natureza da Lesão'),
-    // BUG CORRIGIDO: nome da coluna tem espaços duplos — 'Agente  Causador  Acidente'
     agente:       get('Agente  Causador  Acidente'),
     sexo:         get('Sexo'),
     idade:        calcIdade(get('Data Nascimento'), ano),
@@ -129,7 +173,7 @@ function parseLinha(linha) {
 async function fetchLatin1(url) {
   console.log(`[csvLoader] Fetch: ${url}`);
   const resp = await fetch(url);
-  if (!resp.ok) throw new Error(`HTTP ${resp.status} — ${url}`);
+  if (!resp.ok) throw new Error(`HTTP ${resp.status} - ${url}`);
   const buffer  = await resp.arrayBuffer();
   const decoder = new TextDecoder('iso-8859-1');
   console.log(`[csvLoader] OK: ${(buffer.byteLength / 1024).toFixed(1)} KB`);

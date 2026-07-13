@@ -1,7 +1,3 @@
-// ============================================================
-// main.js — Ponto de entrada
-// ============================================================
-
 async function init() {
   console.group('[main] init()');
 
@@ -20,11 +16,11 @@ async function init() {
   }
 
   if (heap.size === 0) {
-    console.warn('[main] Heap vazio — usando MUNICIPIOS_DATA de data.js');
+    console.warn('[main] Heap vazio - usando MUNICIPIOS_DATA de data.js');
     if (typeof MUNICIPIOS_DATA !== 'undefined') {
       MUNICIPIOS_DATA.forEach((r, i) => {
         r.obitos = r.obitos ?? r.fatalidades ?? 0;
-        r.anos   = r.anos   ?? ['2019','2020','2021','2022','2023'];
+        r.anos   = r.anos   ?? ['2022','2023','2024','2025','2026'];
         heap.insert(r);
         trie.insert(r.municipio, i);
       });
@@ -34,8 +30,8 @@ async function init() {
 
   updateLoading('Processando dados…');
 
-  window.municipiosAgregados = Array.from(agregaPorMunicipio().values())
-    .sort((a, b) => (b.obitos ?? 0) - (a.obitos ?? 0));
+  const municipios = Array.from(agregaPorMunicipio().values());
+  window.municipiosAgregados = quickSortMunicipios(municipios);
   window.dadosNacionais      = agregaNacional();
 
   console.log(`[main] ${window.municipiosAgregados.length} municípios | total=${window.dadosNacionais.totalRegistros}`);

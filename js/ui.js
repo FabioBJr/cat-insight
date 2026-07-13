@@ -1,14 +1,11 @@
 // ============================================================
-// ui.js — Renderização, eventos DOM, autocomplete, modal, paginação
-// Depende de: search.js, charts.js, cboMap.js
+// ui.js - Renderização, eventos DOM, autocomplete, modal, paginação
 // ============================================================
 
-// ------------------------------------------------------------
-// PAGINAÇÃO
-// ------------------------------------------------------------
-const PAGINA_SIZE = 50;
+// Paginação
+const PAGINA_SIZE = 10;
 let paginaAtual  = 1;
-let registrosAtuais = []; // todos os registros do filtro atual
+let registrosAtuais = [];
 
 function renderTable(records) {
   registrosAtuais = records || [];
@@ -49,10 +46,10 @@ function renderPagina() {
     tr.style.cursor = 'pointer';
     tr.innerHTML = `
       <td class="td-municipio">${r.municipio}</td>
-      <td><span class="td-uf">${r.uf || '—'}</span></td>
+      <td><span class="td-uf">${r.uf || '-'}</span></td>
       <td class="td-acidentes">${formatNumber(r.acidentes)}</td>
-      <td class="td-fatalidades">${r.obitos ?? '—'}</td>
-      <td class="td-periodo">${r.anos && r.anos.length ? r.anos[0] + '–' + r.anos[r.anos.length - 1] : '—'}</td>
+      <td class="td-fatalidades">${r.obitos ?? '-'}</td>
+      <td class="td-periodo">${r.anos && r.anos.length ? r.anos[0] + '–' + r.anos[r.anos.length - 1] : '-'}</td>
     `;
     tr.addEventListener('click', () => openModal(r));
     tbody.appendChild(tr);
@@ -64,7 +61,7 @@ function renderPagina() {
     `Exibindo ${inicio + 1}–${fim} de ${total} municípios${filtrado}`;
 
   renderControlesPaginacao(totalPaginas);
-  console.log(`[ui] página ${paginaAtual}/${totalPaginas} — ${pagina.length} linhas`);
+  console.log(`[ui] página ${paginaAtual}/${totalPaginas} - ${pagina.length} linhas`);
 }
 
 function renderControlesPaginacao(totalPaginas) {
@@ -91,24 +88,18 @@ function renderControlesPaginacao(totalPaginas) {
   });
 }
 
-// ------------------------------------------------------------
-// CARDS DO HERO — atualiza com dados reais
-// ------------------------------------------------------------
 function atualizarCards(dadosNacionais) {
-  const elTotal   = document.getElementById('stat-total');
-  const elObitos  = document.getElementById('stat-obitos');
-  const elPeriodo = document.getElementById('stat-periodo');
+  const total   = document.getElementById('stat-total');
+  const obitos  = document.getElementById('stat-obitos');
+  const periodo = document.getElementById('stat-periodo');
 
-  if (elTotal)   elTotal.textContent   = formatNumber(dadosNacionais.totalRegistros);
-  if (elObitos)  elObitos.textContent  = formatNumber(dadosNacionais.totalObitos);
-  if (elPeriodo) elPeriodo.textContent = dadosNacionais.periodo;
+  if (total)   total.textContent   = formatNumber(dadosNacionais.totalRegistros);
+  if (obitos)  obitos.textContent  = formatNumber(dadosNacionais.totalObitos);
+  if (periodo) periodo.textContent = dadosNacionais.periodo;
 
   console.log('[ui] cards atualizados:', dadosNacionais.totalRegistros, dadosNacionais.totalObitos, dadosNacionais.periodo);
 }
 
-// ------------------------------------------------------------
-// AUTOCOMPLETE
-// ------------------------------------------------------------
 let activeIndex = -1;
 
 function initAutocomplete() {
@@ -201,19 +192,16 @@ function runSearch() {
   renderTable(searchByMunicipio(q));
 }
 
-// ------------------------------------------------------------
-// MODAL DA CIDADE
-// ------------------------------------------------------------
+// Modal da cidade
 function openModal(record) {
   console.log('[ui] openModal:', record.municipio);
   const overlay = document.getElementById('modal-overlay');
 
   document.getElementById('modal-title').textContent       = record.municipio;
-  document.getElementById('modal-uf').textContent          = record.uf || '—';
+  document.getElementById('modal-uf').textContent          = record.uf || '-';
   document.getElementById('modal-acidentes').textContent   = formatNumber(record.acidentes);
-  document.getElementById('modal-fatalidades').textContent = record.obitos ?? '—';
-  // Usa o nome legível da profissão (getCboNome já foi aplicado na agregação)
-  document.getElementById('modal-profissao').textContent   = record.profissaoNome || record.profissaoMaisAfetada || '—';
+  document.getElementById('modal-fatalidades').textContent = record.obitos ?? '-';
+  document.getElementById('modal-profissao').textContent   = record.profissaoNome || record.profissaoMaisAfetada || '-';
 
   overlay.classList.add('visible');
   document.body.style.overflow = 'hidden';
@@ -233,6 +221,28 @@ function closeModal() {
   document.body.style.overflow = '';
 }
 
+function initModalSobre() {
+  const overlay  = document.getElementById('modal-sobre-overlay');
+  const btnAbrir = document.getElementById('btn-sobre');
+  const btnFechar = document.getElementById('modal-sobre-close');
+  if (!overlay || !btnAbrir) return;
+
+  btnAbrir.addEventListener('click', () => {
+    overlay.classList.add('visible');
+    document.body.style.overflow = 'hidden';
+  });
+  btnFechar.addEventListener('click', () => {
+    overlay.classList.remove('visible');
+    document.body.style.overflow = '';
+  });
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) {
+      overlay.classList.remove('visible');
+      document.body.style.overflow = '';
+    }
+  });
+}
+
 function initModal() {
   const overlay  = document.getElementById('modal-overlay');
   const btnClose = document.getElementById('modal-close');
@@ -241,11 +251,10 @@ function initModal() {
   btnClose.addEventListener('click', closeModal);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
   console.log('[ui] initModal: ok');
+
+  initModalSobre();
 }
 
-// ------------------------------------------------------------
-// LOADING
-// ------------------------------------------------------------
 function showLoading() {
   const el = document.getElementById('loading-overlay');
   if (el) el.classList.add('visible');
@@ -261,9 +270,6 @@ function hideLoading() {
   if (el) el.classList.remove('visible');
 }
 
-// ------------------------------------------------------------
-// GRÁFICOS NACIONAIS
-// ------------------------------------------------------------
 function initCharts(topCBOs, faixas) {
   const canvasProfissoes = document.getElementById('chart-profissoes');
   const canvasFaixa      = document.getElementById('chart-faixa');

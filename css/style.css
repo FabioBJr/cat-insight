@@ -67,14 +67,6 @@ strong { color: var(--text-primary); font-weight: 600; }
 
 .header-brand { display: flex; align-items: center; gap: 12px; }
 
-.header-logo {
-	width: 32px; height: 32px;
-	background: var(--accent); border-radius: 6px;
-	display: flex; align-items: center; justify-content: center;
-	font-size: 0.65rem; font-weight: 800; color: #0f1117;
-	flex-shrink: 0;
-}
-
 .header-title   { font-size: 0.88rem; font-weight: 600; }
 .header-subtitle{ font-size: 0.72rem; color: var(--text-muted); }
 
@@ -386,6 +378,19 @@ canvas#modal-chart {
 	border-radius: 8px;
 }
 
+.header-sobre-btn {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 0.76rem; font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 999px; padding: 5px 13px;
+  cursor: pointer; font-family: inherit;
+  transition: color .15s, border-color .15s;
+}
+.header-sobre-btn:hover {
+  color: var(--text-primary); border-color: var(--accent);
+}
+
 /* ===========================
 	 INFO SECTION
 =========================== */
@@ -428,11 +433,6 @@ canvas#modal-chart {
 .footer-brand {
 	display: flex; align-items: center; gap: 10px;
 	font-size: 0.83rem; color: var(--text-secondary);
-}
-.footer-logo {
-	width: 26px; height: 26px; background: var(--accent); border-radius: 5px;
-	display: flex; align-items: center; justify-content: center;
-	font-size: 0.58rem; font-weight: 800; color: #0f1117;
 }
 .footer-meta { font-size: 0.8rem; color: var(--text-muted); }
 
@@ -490,6 +490,23 @@ canvas#modal-chart {
 
 .pag-info {
   font-size: 0.82rem; color: var(--text-muted);
+}
+
+.github-link {
+  text-decoration: none; 
+  
+  color: #f59e0b; 
+  
+  font-weight: 500; 
+  font-family: inherit;
+  
+  transition: all 0.2s ease; 
+}
+
+.github-link-simples:hover {
+  color: #fbbf24; 
+  
+  text-decoration: underline; 
 }
 
 /* ===========================

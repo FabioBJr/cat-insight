@@ -1,5 +1,5 @@
 // ------------------------------------------------------------
-// HEAP — arquivo serial (inserção na ordem de chegada)
+// HEAP - arquivo serial (inserção na ordem de chegada)
 // Simula um arquivo heap em disco: sem ordenação, acesso por índice
 // ------------------------------------------------------------
 class Heap {
@@ -7,17 +7,14 @@ class Heap {
 		this.records = [];
 	}
 
-	// Insere registro no final O(1)
 	insert(record) {
 		this.records.push(record);
 	}
 
-	// Retorna todos os registros na ordem de insercao
 	getAll() {
 		return this.records;
 	}
 
-	// Acesso direto por índice (equivalente ao fseek em arquivo binário)
 	getByIndex(index) {
 		return this.records[index] ?? null;
 	}
@@ -28,9 +25,9 @@ class Heap {
 }
 
 // ------------------------------------------------------------
-// TRIE — índice digital para busca por prefixo de município
+// TRIE - índice digital para busca por prefixo de município
 // Cada nó armazena os índices dos registros que passam por ele,
-// permitindo recuperação O(k) onde k = tamanho do prefixo
+// permitindo recuperação O(n) onde n = tamanho do prefixo
 // ------------------------------------------------------------
 class TrieNode {
 	constructor() {
@@ -45,7 +42,7 @@ class Trie {
 		this.root = new TrieNode();
 	}
 
-	// Insere string e associa ao indice do registro no Heap O(k)
+	// Insere string e associa ao indice do registro no Heap O(n)
 	insert(str, heapIndex) {
 		let node = this.root;
 		for (const char of this._normalize(str)) {
@@ -58,7 +55,7 @@ class Trie {
 		node.isEnd = true;
 	}
 
-	// Retorna indices de todos os registros cujo municipio comeca com prefix O(k)
+	// Retorna indices de todos os registros cujo municipio comeca com prefix O(n)
 	searchPrefix(prefix) {
 		if (!prefix) return [];
 		let node = this.root;
@@ -69,7 +66,6 @@ class Trie {
 		return node.indices;
 	}
 
-	// Normaliza para comparação uniforme: maiúsculas sem acento
 	_normalize(str) {
 	return str
 	  .toUpperCase()
@@ -78,8 +74,39 @@ class Trie {
   }
 }
 
-// ------------------------------------------------------------
-// Instâncias globais — inicializadas em main.js
-// ------------------------------------------------------------
+// ============================================================
+// QUICKSORT - Ordenação de municípios por número de óbitos
+// ============================================================
+function quickSortMunicipios(arr, left = 0, right = arr.length - 1) {
+  if (left < right) {
+    const pivotIndex = partition(arr, left, right);
+    // Ordena recursivamente a sublista à esquerda do pivô
+    quickSortMunicipios(arr, left, pivotIndex - 1);
+    // Ordena recursivamente a sublista à direita do pivô
+    quickSortMunicipios(arr, pivotIndex + 1, right);
+  }
+  return arr;
+}
+
+function partition(arr, left, right) {
+  const pivotValue = arr[right].obitos ?? 0;
+  let i = left - 1;
+
+  for (let j = left; j < right; j++) {
+    const currentObitos = arr[j].obitos ?? 0;
+    
+    // Ordem decrescente
+    if (currentObitos > pivotValue) {
+      i++;
+      // Troca os elementos de lugar
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+  }
+  
+  // Coloca o pivô na posição correta
+  [arr[i + 1], arr[right]] = [arr[right], arr[i + 1]];
+  return i + 1;
+}
+
 const heap = new Heap();
 const trie = new Trie();

@@ -1,5 +1,5 @@
 // ============================================================
-// charts.js — Gráficos com Canvas puro (zero dependências)
+// charts.js - Gráficos com Canvas puro (zero dependências)
 // ============================================================
 
 const ACCENT       = '#f59e0b';
@@ -11,7 +11,7 @@ const BORDER_COLOR = '#2a2d3e';
 const BG_BAR       = '#2a3040';
 
 // ------------------------------------------------------------
-// Gráfico de barras horizontais — profissões ou faixa etária
+// Gráfico de barras horizontais - profissões ou faixa etária
 // canvas: elemento <canvas>
 // data:   [{ label, valor }]
 // color:  cor das barras
@@ -28,8 +28,14 @@ function drawBarChart(canvas, data, color = ACCENT) {
 
   ctx.clearRect(0, 0, W, H);
 
-  const paddingLeft  = 148;
-  const paddingRight = 60;
+  const MAX_CHARS    = 75;
+  const truncate     = (s) => s.length > MAX_CHARS ? s.slice(0, MAX_CHARS - 1) + '…' : s;
+  const labelsFit    = data.map(d => ({ ...d, labelFit: truncate(d.label) }));
+
+  ctx.font = `500 12px Inter, sans-serif`;
+  const maxLabelW   = Math.max(...labelsFit.map(d => ctx.measureText(d.labelFit).width));
+  const paddingLeft  = Math.ceil(maxLabelW) + 16;
+  const paddingRight = 72;
   const paddingTop   = 12;
   const paddingBot   = 12;
 
@@ -55,12 +61,11 @@ function drawBarChart(canvas, data, color = ACCENT) {
 	roundRect(ctx, paddingLeft, y, barW, barH, 4);
 	ctx.fill();
 
-	// Label à esquerda
-	ctx.fillStyle  = TEXT_PRIMARY;
-	ctx.font       = `500 12px Inter, sans-serif`;
-	ctx.textAlign  = 'right';
+	ctx.fillStyle    = TEXT_PRIMARY;
+	ctx.font         = `500 12px Inter, sans-serif`;
+	ctx.textAlign    = 'left';
 	ctx.textBaseline = 'middle';
-	ctx.fillText(item.label, paddingLeft - 10, centerY);
+	ctx.fillText(labelsFit[i].labelFit, 0, centerY);
 
 	// Valor à direita
 	ctx.fillStyle  = TEXT_MUTED;
@@ -71,7 +76,7 @@ function drawBarChart(canvas, data, color = ACCENT) {
 }
 
 // ------------------------------------------------------------
-// Mini linha de evolução — para o modal da cidade
+// Mini linha de evolução - para o modal da cidade
 // canvas: elemento <canvas>
 // values: [n, n, n, n, n]
 // labels: ['2019','2020',...]

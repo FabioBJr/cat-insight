@@ -3,7 +3,7 @@
 <head>
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-	<title>CAT — Acidentes de Trabalho no TESTE</title>
+	<title>Acidentes de Trabalho no Brasil</title>
 	<link rel="stylesheet" href="css/style.css" />
 	<link rel="preconnect" href="https://fonts.googleapis.com" />
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -14,24 +14,22 @@
 	<!-- ===================== HEADER ===================== -->
 	<header class="header">
 		<div class="header-brand">
-			<div class="header-logo">CAT</div>
 			<div>
 				<div class="header-title">Acidentes de Trabalho no Brasil</div>
 				<div class="header-subtitle">Plataforma de Consulta Pública</div>
 			</div>
 		</div>
-		<div class="header-source">
-			<span class="header-source-dot"></span>
-			Fonte: INSS / dados.gov.br
-		</div>
+		<button id="btn-sobre" class="header-sobre-btn">
+    		<i class="ti ti-info-circle"></i> Sobre o projeto
+  		</button>
 	</header>
 
 	<!-- ===================== HERO ===================== -->
 	<section class="hero">
 		<span class="eyebrow">Dados Abertos</span>
 		<h1 class="hero-headline">
-			Transparência é o primeiro passo para
-			<span class="highlight">proteger vidas</span> no trabalho.
+			É <span class="highlight">seguro</span> trabalhar no <span class="highlight">Brasil</span>?
+			Isso é o que este <span class="highlight">projeto</span> ajuda a <span class="highlight">responder</span>.
 		</h1>
 		<p class="hero-description">
 			Consulte os registros de Comunicação de Acidente de Trabalho (CAT) compilados pelo INSS.
@@ -39,18 +37,18 @@
 		</p>
 		<div class="stats-grid">
 			<div class="stat-card">
-				<div class="stat-label">Total de Registros CAT</div>
-				<div class="stat-value" id="stat-total">—</div>
+				<div class="stat-label">Total de Registros</div>
+				<div class="stat-value" id="stat-total">-</div>
 				<div class="stat-description">acidentes registrados</div>
 			</div>
 			<div class="stat-card">
 				<div class="stat-label">Fatalidades Registradas</div>
-				<div class="stat-value danger" id="stat-obitos">—</div>
+				<div class="stat-value danger" id="stat-obitos">-</div>
 				<div class="stat-description">óbitos confirmados</div>
 			</div>
 			<div class="stat-card">
 				<div class="stat-label">Período Coberto</div>
-				<div class="stat-value" id="stat-periodo">—</div>
+				<div class="stat-value" id="stat-periodo">-</div>
 				<div class="stat-description">5 anos de dados</div>
 			</div>
 		</div>
@@ -63,10 +61,10 @@
 		<div class="charts-section-header">
 			<span class="eyebrow">Panorama Nacional</span>
 			<h2>Quem são os mais afetados?</h2>
-			<p>Distribuição nacional de acidentes por profissão e faixa etária — 2019 a 2023.</p>
+			<p>Distribuição nacional de acidentes por profissão e faixa etária - 2022 a 2026.</p>
 		</div>
 
-		<div class="charts-grid">
+		<div class="charts-grid" style="grid-template-columns: 1fr;">
 			<!-- Profissões -->
 			<div class="chart-card">
 				<div class="chart-card-header">
@@ -144,7 +142,7 @@
 	<section class="info-section">
 		<div class="info-grid">
 			<div class="info-card">
-				<span class="eyebrow">Sobre o Projeto</span>
+				<span class="eyebrow">Sobre o CAT</span>
 				<h3>O que é o CAT?</h3>
 				<p>
 					A <strong>Comunicação de Acidente de Trabalho (CAT)</strong> é um documento obrigatório
@@ -152,19 +150,13 @@
 					acidente de trajeto ou doença ocupacional. Seu registro é exigido por lei e constitui
 					uma das principais fontes de dados sobre saúde e segurança do trabalho no Brasil.
 				</p>
-				<p>
-					Esta plataforma consolida e disponibiliza esses registros de forma acessível, permitindo
-					que pesquisadores, gestores públicos e cidadãos consultem os dados por município e período,
-					contribuindo para políticas de prevenção mais eficazes.
-				</p>
 			</div>
 			<div class="info-card">
 				<span class="eyebrow">Dados Abertos</span>
 				<h3>Fonte dos dados</h3>
 				<p>
-					Os dados são provenientes do portal de dados abertos do governo federal e
-					disponibilizados pelo INSS. São atualizados periodicamente e colocados à disposição
-					pública em conformidade com a <strong>Lei de Acesso à Informação (LAI)</strong>.
+					Os dados são alimientados pelo portal de dados abertos do governo federal
+					disponibilizados pelo INSS, recebendo atualizações periódicas.
 				</p>
 				<a
 					href="https://dados.gov.br/dados/conjuntos-dados/inss-comunicacao-de-acidente-de-trabalho-cat1"
@@ -180,10 +172,11 @@
 	<!-- ===================== FOOTER ===================== -->
 	<footer class="footer">
 		<div class="footer-brand">
-			<div class="footer-logo">CAT</div>
-			CAT — Acidentes de Trabalho no Brasil
+			Acidentes de Trabalho no Brasil
 		</div>
-		<div class="footer-meta">Engenharia de Computação — UFRGS · 2025</div>
+		<div class="footer-meta">
+			<a href="https://github.com/FabioBJr" class="github-link" target="_blank" rel="noopener noreferrer">FabioBJr</a>
+		</div>
 	</footer>
 
 	<!-- ===================== MODAL ===================== -->
@@ -193,19 +186,19 @@
 
 			<div class="modal-header">
 				<div class="modal-title-row">
-					<h2 class="modal-title" id="modal-title">—</h2>
-					<span class="modal-uf" id="modal-uf">—</span>
+					<h2 class="modal-title" id="modal-title">-</h2>
+					<span class="modal-uf" id="modal-uf">-</span>
 				</div>
 			</div>
 
 			<div class="modal-stats-grid">
 				<div class="modal-stat">
 					<div class="modal-stat-label">Total de Acidentes</div>
-					<div class="modal-stat-value" id="modal-acidentes">—</div>
+					<div class="modal-stat-value" id="modal-acidentes">-</div>
 				</div>
 				<div class="modal-stat">
 					<div class="modal-stat-label">Fatalidades</div>
-					<div class="modal-stat-value danger" id="modal-fatalidades">—</div>
+					<div class="modal-stat-value danger" id="modal-fatalidades">-</div>
 				</div>
 			</div>
 
@@ -214,29 +207,95 @@
 				<div class="modal-profissao">
 					<span class="modal-profissao-icon">⚠️</span>
 					<div>
-						<div class="modal-profissao-name" id="modal-profissao">—</div>
-						<div class="modal-profissao-sub">categoria com mais registros CAT no município</div>
+						<div class="modal-profissao-name" id="modal-profissao">-</div>
+						<div class="modal-profissao-sub">categoria com mais registros no município</div>
 					</div>
 				</div>
 			</div>
 
 			<div class="modal-section">
-				<div class="modal-section-title">Evolução anual de acidentes (2019–2023)</div>
+				<div class="modal-section-title">Evolução anual de acidentes (2022–2026)</div>
 				<canvas id="modal-chart"></canvas>
 			</div>
 		</div>
+	</div>
+
+	<!-- ===================== MODAL SOBRE ===================== -->
+	<div id="modal-sobre-overlay" class="modal-overlay">
+	  	<div class="modal" role="dialog" aria-modal="true" aria-labelledby="sobre-title">
+	    	<button id="modal-sobre-close" class="modal-close" aria-label="Fechar">✕</button>
+
+	    	<span class="eyebrow">Sobre o projeto</span>
+	    	<h2 class="modal-title" id="sobre-title">CAT - Acidentes de Trabalho no Brasil</h2>
+	    	<p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:24px;">
+	    	  Trabalho Final · INF 01203 Estruturas de Dados · UFRGS · 2026
+	    	</p>
+
+	    	<div class="modal-stats-grid" style="grid-template-columns:1fr 1fr;">
+	    	  	<div class="modal-stat">
+	    	    	<div class="modal-stat-label">Fonte dos dados</div>
+	    	    	<div style="font-size:0.82rem; color:var(--text-secondary); margin-top:4px;">Portal Brasileiro de Dados Abertos - INSS / dados.gov.br</div>
+	    	  	</div>
+	    	  	<div class="modal-stat">
+	    	    	<div class="modal-stat-label">Período coberto</div>
+	    	    	<div style="font-size:0.82rem; color:var(--text-secondary); margin-top:4px;">Janeiro de 2022 - Maio de 2026</div>
+	    	  	</div>
+	    	  	<div class="modal-stat">
+	    	    	<div class="modal-stat-label">Registros</div>
+	    	    	<div style="font-size:0.82rem; color:var(--text-secondary); margin-top:4px;">Dados reais do CAT processados no navegador</div>
+	    	  	</div>
+	    	</div>
+
+	    	<div class="modal-section">
+	    	  	<div class="modal-section-title">Objetivo</div>
+	    	  	<ul style="list-style:none; padding:0; margin:0;">
+	    	    	<li style="display:flex; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); font-size:0.84rem; color:var(--text-secondary); line-height:1.6;">
+						<span style="color:var(--accent); flex-shrink:0;">→</span>Tornar os dados públicos do CAT acessíveis à população sem necessidade de baixar planilhas
+					</li>
+	    	    	<li style="display:flex; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); font-size:0.84rem; color:var(--text-secondary); line-height:1.6;">
+					<span style="color:var(--accent); flex-shrink:0;">→</span>Consulta por município com busca por prefixo usando estrutura TRIE
+					</li>
+	    	    	<li style="display:flex; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); font-size:0.84rem; color:var(--text-secondary); line-height:1.6;">
+						<span style="color:var(--accent); flex-shrink:0;">→</span>Visualizar panorama nacional de profissões e faixas etárias mais afetadas
+					</li>
+	    	    	<li style="display:flex; gap:10px; padding:8px 0; font-size:0.84rem; color:var(--text-secondary); line-height:1.6;">
+						<span style="color:var(--accent); flex-shrink:0;">→</span>Contribuir para transparência em segurança do trabalho no Brasil
+					</li>
+	    	  	</ul>
+	    	</div>
+
+	    	<div class="modal-section">
+	    	  	<div class="modal-section-title">Estruturas e algoritmos implementados</div>
+	    	  	<ul style="list-style:none; padding:0; margin:0;">
+	    	    	<li style="display:flex; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); font-size:0.84rem; color:var(--text-secondary); line-height:1.6;">
+						<span style="color:var(--accent); flex-shrink:0;">→</span>
+						<span><strong style="color:var(--text-primary); font-weight:600;">Heap (arquivo serial)</strong> - armazena registros na ordem de chegada do CSV, acesso O(1)</span>
+					</li>
+	    	    	<li style="display:flex; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); font-size:0.84rem; color:var(--text-secondary); line-height:1.6;"><span style="color:var(--accent); flex-shrink:0;">→</span>
+						<span><strong style="color:var(--text-primary); font-weight:600;">TRIE</strong> - índice digital para busca por prefixo de município em O(k)</span>
+					</li>
+	    	    	<li style="display:flex; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); font-size:0.84rem; color:var(--text-secondary); line-height:1.6;">
+						<span style="color:var(--accent); flex-shrink:0;">→</span>
+						<span><strong style="color:var(--text-primary); font-weight:600;">QuickSort</strong> - ordenação da tabela por fatalidades, O(n log n) médio, in-place</span>
+					</li>
+	    	  	</ul>
+	    	</div>
+
+	    	<p style="font-size:0.78rem; color:var(--text-muted); line-height:1.7; margin-top:8px;">
+
+	    	</p>
+	  	</div>
 	</div>
 
 	<!-- Loading overlay -->
 	<div id="loading-overlay" class="loading-overlay">
 		<div class="loading-box">
 			<div class="loading-spinner"></div>
-			<div class="loading-title">Carregando dados do CAT</div>
+			<div class="loading-title">Carregando dados</div>
 			<div id="loading-message" class="loading-message">Iniciando…</div>
 		</div>
 	</div>
 
-	<!-- Scripts — carregados na ordem das dependências -->
 	<script src="js/cboMap.js"></script>
 	<script src="js/data.js"></script>
 	<script src="js/structures.js"></script>

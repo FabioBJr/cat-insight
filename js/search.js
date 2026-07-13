@@ -1,17 +1,21 @@
-// ============================================================
-// search.js — Lógica de busca desacoplada da interface
-// Depende de: structures.js (heap, trie), cboMap.js (CBO_MAP)
-// ============================================================
-
-// Retorna o nome legível de um CBO — "784205" → "Alimentador de linha de produção"
+// Retorna o nome legível de um CBO - "784205" → "Alimentador de linha de produção"
 // Tenta exato, depois com zero à esquerda, depois retorna o código como fallback
 function getCboNome(codigo) {
-  if (!codigo || !window.CBO_MAP) return codigo || '—';
+  if (!codigo) return 'Profissões não identificadas/registradas';
+  
+  if (typeof CBO_MAP === 'undefined') return codigo; // cboMap.js não carregado
+  
   const c6 = String(codigo).padStart(6, '0');
-  return CBO_MAP[c6] || CBO_MAP[codigo] || codigo;
+  let nome = CBO_MAP[c6] || CBO_MAP[codigo] || codigo;
+  
+  if (nome === '000000' || String(nome).includes('{ñ') || String(nome).toLowerCase() === 'ignorado') {
+    return 'Profissões não identificadas/registradas';
+  }
+  
+  return nome;
 }
 
-// Busca por prefixo usando a Trie — retorna registros AGREGADOS (sem duplicatas)
+// Busca por prefixo usando a Trie - retorna registros AGREGADOS (sem duplicatas)
 function searchByMunicipio(prefix) {
   if (!prefix || !prefix.trim()) return window.municipiosAgregados || [];
 
@@ -33,7 +37,7 @@ function searchByMunicipio(prefix) {
 
 
 function formatNumber(n) {
-  if (n === null || n === undefined) return '—';
+  if (n === null || n === undefined) return '-';
   return Number(n).toLocaleString('pt-BR');
 }
 
@@ -77,8 +81,8 @@ function agregaPorMunicipio() {
       entry.profissaoCodigo  = codigoTop;
       entry.profissaoNome    = getCboNome(codigoTop); // nome legível
     } else {
-      entry.profissaoCodigo = '—';
-      entry.profissaoNome   = '—';
+      entry.profissaoCodigo = '-';
+      entry.profissaoNome   = '-';
     }
     entry.anos     = Object.keys(entry.porAno).sort();
     entry.evolucao = entry.anos.map(ano => entry.porAno[ano]);
@@ -140,7 +144,7 @@ function agregaNacional() {
 
   const faixas = ordemFaixas.map(label => ({ label, valor: porFaixa[label] }));
 
-  const periodo = anoMin === Infinity ? '—' : (anoMin === anoMax ? String(anoMin) : `${anoMin}–${anoMax}`);
+  const periodo = anoMin === Infinity ? '-' : (anoMin === anoMax ? String(anoMin) : `${anoMin}–${anoMax}`);
 
   console.log(`[search] total=${heap.size} | óbitos=${totalObitos} | período=${periodo}`);
   console.groupEnd();
