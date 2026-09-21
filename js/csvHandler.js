@@ -1,59 +1,3 @@
-// ============================================================
-// csvLoader.js - Carrega e normaliza os CSVs do CAT
-// ============================================================
-
-const CSV_FILES = [
-  'data/D.SDA.PDA.005.CAT.202201.csv',
-  'data/D.SDA.PDA.005.CAT.202204.csv',
-  'data/D.SDA.PDA.005.CAT.202207.csv',
-  'data/D.SDA.PDA.005.CAT.202208.csv',
-  'data/D.SDA.PDA.005.CAT.202209.csv',
-  'data/D.SDA.PDA.005.CAT.202210.csv',
-  'data/D.SDA.PDA.005.CAT.202211.csv',
-  'data/D.SDA.PDA.005.CAT.202212.csv',
-  'data/D.SDA.PDA.005.CAT.202301.csv',
-  'data/D.SDA.PDA.005.CAT.202302.csv',
-  'data/D.SDA.PDA.005.CAT.202303.csv',
-  'data/D.SDA.PDA.005.CAT.202304.csv',
-  'data/D.SDA.PDA.005.CAT.202305.csv',
-  'data/D.SDA.PDA.005.CAT.202306.csv',
-  'data/D.SDA.PDA.005.CAT.202307.csv',
-  'data/D.SDA.PDA.005.CAT.202308.csv',
-  'data/D.SDA.PDA.005.CAT.202309.csv',
-  'data/D.SDA.PDA.005.CAT.202310.csv',
-  'data/D.SDA.PDA.005.CAT.202311.csv',
-  'data/D.SDA.PDA.005.CAT.202312.csv',
-  'data/D.SDA.PDA.005.CAT.202401.csv',
-  'data/D.SDA.PDA.005.CAT.202402.csv',
-  'data/D.SDA.PDA.005.CAT.202403.csv',
-  'data/D.SDA.PDA.005.CAT.202404.csv',
-  'data/D.SDA.PDA.005.CAT.202405.csv',
-  'data/D.SDA.PDA.005.CAT.202406.csv',
-  'data/D.SDA.PDA.005.CAT.202407.csv',
-  'data/D.SDA.PDA.005.CAT.202408.csv',
-  'data/D.SDA.PDA.005.CAT.202409.csv',
-  'data/D.SDA.PDA.005.CAT.202410.csv',
-  'data/D.SDA.PDA.005.CAT.202411.csv',
-  'data/D.SDA.PDA.005.CAT.202412.csv',
-  'data/D.SDA.PDA.005.CAT.202501.csv',
-  'data/D.SDA.PDA.005.CAT.202502.csv',
-  'data/D.SDA.PDA.005.CAT.202503.csv',
-  'data/D.SDA.PDA.005.CAT.202504.csv',
-  'data/D.SDA.PDA.005.CAT.202505.csv',
-  'data/D.SDA.PDA.005.CAT.202506.csv',
-  'data/D.SDA.PDA.005.CAT.202507.csv',
-  'data/D.SDA.PDA.005.CAT.202508.csv',
-  'data/D.SDA.PDA.005.CAT.202509.csv',
-  'data/D.SDA.PDA.005.CAT.202510.csv',
-  'data/D.SDA.PDA.005.CAT.202511.csv',
-  'data/D.SDA.PDA.005.CAT.202512.csv',
-  'data/D.SDA.PDA.005.CAT.202601.csv',
-  'data/D.SDA.PDA.005.CAT.202602.csv',
-  'data/D.SDA.PDA.005.CAT.202603.csv',
-  'data/D.SDA.PDA.005.CAT.202604.csv',
-  'data/D.SDA.PDA.005.CAT.202605.csv',
-];
-
 function findCol(headers, name) {
   const n = name.trim().toLowerCase();
   return headers.findIndex(h => h.trim().toLowerCase() === n);
@@ -103,6 +47,13 @@ function parseMunicipio(val) {
   return { codigo, nome };
 }
 
+function parseUF(val) {
+  const s = clean(val);
+
+  return s.toLowerCase() !== 'zerado' ? s : '-';
+
+}
+
 function parseCBO(val) {
   const s = clean(val);
   return s.split(/[-\s]/)[0].trim();
@@ -122,7 +73,7 @@ function calcIdade(dataNasc, anoAcidente) {
   return anoAcidente - anoNasc;
 }
 
-function converteLinha(valores, headers, formato) {
+function convertLine(valores, headers, formato) {
   const get = (nome) => clean(valores[findCol(headers, nome)]);
 
   const municipio = parseMunicipio(get('Munic Empr'));
@@ -130,10 +81,12 @@ function converteLinha(valores, headers, formato) {
 
   const campoObito = formato === 'novo' ? 'Indica Óbito Acidente' : 'Indica acidente';
 
+  const uf = parseUF(get('UF Munic. Empregador'));
+
   return {
     municipio:    municipio.nome,
     municipioCod: municipio.codigo,
-    uf:           get('UF Munic. Empregador'),
+    uf,
     ano,
     cbo:          parseCBO(get('CBO')),
     cboDesc:      clean(valores[findCol(headers, 'CBO.1')]),
@@ -217,11 +170,81 @@ async function loadCSVs(onProgress) {
       if (onProgress) onProgress(arquivo, totalRegistros);
 
     } catch (err) {
-      console.warn(`[csvLoader] ⚠ Falha em ${arquivo}:`, err.message);
+      console.warn(`[csvLoader] Falha em ${arquivo}:`, err.message);
     }
   }
 
   console.log(`[csvLoader] Total: ${totalRegistros} | Heap.size=${heap.size}`);
   console.groupEnd();
   return totalRegistros;
+}
+
+function generateFileList(path, startYear, startMonth, endYear, endMonth) {
+  const files = [];
+  let currentYear = startYear;
+  let currentMonth = startMonth;
+
+  while (currentYear < endYear || (currentYear === endYear && currentMonth <= endMonth)) {
+
+    const formattedMonth = currentMonth.toString().padStart(2, '0');
+    
+    files.push(`${path}${currentYear}${formattedMonth}.csv`);
+
+    currentMonth++;
+    
+    if (currentMonth > 12) {
+      currentMonth = 1;
+      currentYear++;
+    }
+  }
+  return files;
+}
+
+const loadedFiles = new Set();
+
+async function loadPeriod(anoInicio, anoFim, onProgress) {
+  let newFiles = 0;
+  
+  const allFiles = generateFileList('data/D.SDA.PDA.005.CAT.', anoInicio, 1, anoFim, 12);
+
+  const filesRemaning = allFiles.filter(file => loadedFiles.has(file));
+
+  if (filesRemaning.length === 0) return 0;
+
+  for (const file of filesRemaning) {
+    try {
+      const text = await fetchLatin1(file);
+      const lines = text.split('\n');
+      const headers = lineParse(line[0].replace(/\r/g, ''));
+      const format = detectFormat(headers);
+
+      for (let i = 1; i < lines.length; i++) {
+        const line = line[i].replace(/\r/g, '').trim();
+        if (!line) continue;
+
+        const values = lineParse(line);
+        if (!values.length < 10) continue;
+
+        const record = convertLine((values, headers, format));
+        if (!record.municipio || !record.ano) continue;
+
+        const heapIndex = heap.size;
+        heap.insert(record);
+        trie.insert(record.municipio, heapIndex);
+
+        newFiles++;
+
+      }
+      loadedFiles.add(file);
+
+      if (onProgress) {
+        onProgress(file, heap.size);
+      }
+    } catch (err) {
+      if (err.message.includes('404')) {
+        loadedFiles.add(file);
+      }
+    }
+  }
+  return newRecords;
 }

@@ -11,7 +11,7 @@ const BORDER_COLOR = '#2a2d3e';
 const BG_BAR       = '#2a3040';
 
 // ------------------------------------------------------------
-// Gráfico de barras horizontais - profissões ou faixa etária
+// Gráfico de barras horizontais - profissões
 // canvas: elemento <canvas>
 // data:   [{ label, valor }]
 // color:  cor das barras
@@ -37,7 +37,7 @@ function drawBarChart(canvas, data, color = ACCENT) {
   const paddingLeft  = Math.ceil(maxLabelW) + 16;
   const paddingRight = 72;
   const paddingTop   = 12;
-  const paddingBot   = 12;
+  const paddingBot   = 24;
 
   const maxVal    = Math.max(...data.map(d => d.valor));
   const barCount  = data.length;
@@ -45,6 +45,45 @@ function drawBarChart(canvas, data, color = ACCENT) {
   const barH      = Math.floor((totalH / barCount) * 0.55);
   const gap       = Math.floor((totalH / barCount) * 0.45);
   const availW    = W - paddingLeft - paddingRight;
+
+  // DESENHANDO AS LINHAS DE GRADE VERTICAIS E VALORES DO EIXO X
+  const linhasGrade = 4; // Dividindo em 4 partes
+  
+  ctx.font = '500 11px Inter, sans-serif'; 
+  ctx.textAlign = 'center'; 
+  ctx.textBaseline = 'top';
+
+  for (let j = 0; j <= linhasGrade; j++) {
+    // Calcula a posição X da linha
+    const xGrade = paddingLeft + (availW / linhasGrade) * j;
+    const valorLinha = (maxVal / linhasGrade) * j;
+    
+    // Formata o número (ex: 10000 vira "10k")
+    let textoValor = Math.round(valorLinha).toString();
+    if (valorLinha >= 1000) {
+      textoValor = Math.round(valorLinha / 1000) + 'k';
+    }
+
+    // Desenha o número abaixo da grade
+    ctx.fillStyle = TEXT_MUTED; 
+    ctx.fillText(textoValor, xGrade, paddingTop + totalH + 8);
+
+    // Desenha a linha vertical
+    ctx.strokeStyle = 'rgba(100, 116, 139, 0.2)'; 
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(xGrade, paddingTop); 
+    ctx.lineTo(xGrade, paddingTop + totalH); 
+    ctx.stroke();
+  }
+
+  // DESENHANDO O EIXO Y PRINCIPAL (A LINHA QUE SEPARA OS TEXTOS)
+  ctx.strokeStyle = '#475569'; 
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(paddingLeft, paddingTop); 
+  ctx.lineTo(paddingLeft, paddingTop + totalH); 
+  ctx.stroke();
 
   data.forEach((item, i) => {
 	const y       = paddingTop + i * (barH + gap);
@@ -63,15 +102,120 @@ function drawBarChart(canvas, data, color = ACCENT) {
 
 	ctx.fillStyle    = TEXT_PRIMARY;
 	ctx.font         = `500 12px Inter, sans-serif`;
-	ctx.textAlign    = 'left';
+	ctx.textAlign    = 'right';
 	ctx.textBaseline = 'middle';
-	ctx.fillText(labelsFit[i].labelFit, 0, centerY);
+	ctx.fillText(labelsFit[i].labelFit, 328, centerY);
 
 	// Valor à direita
 	ctx.fillStyle  = TEXT_MUTED;
 	ctx.font       = `600 11px Inter, sans-serif`;
 	ctx.textAlign  = 'left';
 	ctx.fillText(formatNumber(item.valor), paddingLeft + barW + 8, centerY);
+  });
+}
+
+// ------------------------------------------------------------
+// Gráfico de barras verticais - faixa etária
+// canvas: elemento <canvas>
+// data:   [{ label, valor }]
+// color:  cor das barras
+// ------------------------------------------------------------
+function drawVerticalBarChart(canvas, data, color = '#3b82f6') { // Azul padrão da sua imagem
+  const ctx    = canvas.getContext('2d');
+  const dpr    = window.devicePixelRatio || 1;
+  const W      = canvas.offsetWidth;
+  const H      = canvas.offsetHeight;
+
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, W, H);
+
+  // Inversão das margens para o formato vertical
+  const paddingLeft  = 40;
+  const paddingRight = 16;
+  const paddingTop   = 24; // Espaço para o valor acima da barra
+  const paddingBot   = 24; // Espaço para o label abaixo da barra
+
+  const maxVal   = Math.max(...data.map(d => d.valor));
+  const barCount = data.length;
+  const totalW   = W - paddingLeft - paddingRight;
+  const barW     = Math.floor((totalW / barCount) * 0.55); // 55% largura da barra
+  const gap      = Math.floor((totalW / barCount) * 0.45); // 45% espaçamento
+  const availH   = H - paddingTop - paddingBot;
+
+  // DESENHANDO AS LINHAS DE GRADE E OS VALORES DO EIXO y
+  // Configurando fonte dos números laterais
+  ctx.font = '500 11px Inter, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.textBaseLine = 'middle';
+
+  const linhasGrade = 5; // Quantidade de linhas horizontais
+
+  for (let j = 0; j <= linhasGrade; j++) {
+    // Calcula a posição Y de cada linha
+    const yGrade = paddingTop + (availH / linhasGrade) * j;
+
+    // Calcula o valor matemático correspondente a essa altura
+    // Topo (j=0) é maxVal, base (j=5) é 0.
+    const valorLinha = maxVal - (maxVal / linhasGrade) * j;
+
+    // Formata o número (ex: 50000 vira "50k")
+    let textoValor = Math.round(valorLinha).toString();
+    if (valorLinha >= 1000) {
+      textoValor = Math.round(valorLinha / 1000) + 'k';
+    }
+
+    // Desenha o número um pouco à esquerda de onde a linha começa
+    ctx.fillStyle = TEXT_MUTED; 
+    ctx.fillText(textoValor, paddingLeft - 8, yGrade);
+
+    // Desenha a linha
+    ctx.strokeStyle = 'rgba(100, 116, 139, 0.2)'; 
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(paddingLeft, yGrade); 
+    ctx.lineTo(W - paddingRight, yGrade); 
+    ctx.stroke();
+  }
+
+  // DESENHANDO O EIXO X PRINCIPAL (BASE)
+  ctx.strokeStyle = '#475569'; 
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(paddingLeft, paddingTop + availH); 
+  ctx.lineTo(W - paddingRight, paddingTop + availH); 
+  ctx.stroke();
+
+  data.forEach((item, i) => {
+    // Calcula a posição no eixo X e a altura (eixo Y)
+    const x       = paddingLeft + i * (barW + gap) + gap / 2;
+    const barH    = Math.round((item.valor / maxVal) * availH) || 1; // Garante 1px se o valor for muito baixo
+    const y       = paddingTop + availH - barH;
+    const centerX = x + barW / 2;
+
+    // Barra de fundo (BG_BAR) ocupando a altura total disponível
+    ctx.fillStyle = BG_BAR;
+    roundRect(ctx, x, paddingTop, barW, availH, 4);
+    ctx.fill();
+
+    // Barra de valor preenchida de baixo para cima[cite: 2]
+    ctx.fillStyle = color;
+    roundRect(ctx, x, y, barW, barH, 4);
+    ctx.fill();
+
+    // Valores totais posicionados acima de cada barra (ex: 34.858)
+    ctx.fillStyle    = TEXT_MUTED;
+    ctx.font         = `600 11px Inter, sans-serif`;
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(formatNumber(item.valor), centerX, y - 6);
+
+    // Labels do eixo X posicionados abaixo de cada barra (ex: 18-24)
+    ctx.fillStyle    = TEXT_PRIMARY;
+    ctx.font         = `500 12px Inter, sans-serif`;
+    ctx.textBaseline = 'top';
+    ctx.fillText(item.label, centerX, paddingTop + availH + 8);
   });
 }
 

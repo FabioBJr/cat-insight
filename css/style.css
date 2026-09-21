@@ -97,6 +97,7 @@ strong { color: var(--text-primary); font-weight: 600; }
 }
 
 .hero-headline .highlight { color: var(--accent); }
+.highlight { color: var(--accent); }
 
 .hero-description {
 	font-size: 0.97rem; color: var(--text-secondary);
@@ -128,6 +129,71 @@ strong { color: var(--text-primary); font-weight: 600; }
 }
 .stat-value.danger { color: var(--danger); }
 .stat-description { font-size: 0.75rem; color: var(--text-muted); }
+
+/* Filtro de Período (Segmented Control) */
+.period-filter-wrapper {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	margin-bottom: 32px; /* Espaço antes dos cartões de estatística */
+}
+
+.period-filter-label {
+	font-size: 0.85rem;
+	font-weight: 600;
+	color: var(--text-secondary);
+}
+
+.period-filter-group {
+	display: inline-flex;
+	background: var(--bg-card);
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	padding: 4px;
+}
+
+.period-btn {
+	background: transparent;
+	border: none;
+	color: var(--text-muted);
+	font-family: inherit;
+	font-size: 0.82rem;
+	font-weight: 600;
+	padding: 8px 16px;
+	border-radius: 6px;
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+.period-btn:hover:not(.active) {
+	color: var(--text-primary);
+	background: var(--bg-card-hover);
+}
+
+/* Estado ativo do botão selecionado */
+.period-btn.active {
+	background: var(--accent);
+	color: var(--bg-primary);
+	box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Responsividade para telas menores */
+@media (max-width: 600px) {
+	.period-filter-wrapper {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 12px;
+	}
+	.period-filter-group {
+		width: 100%;
+		display: flex;
+	}
+	.period-btn {
+		flex: 1;
+		text-align: center;
+		padding: 8px 4px;
+	}
+}
 
 /* ===========================
 	 CHARTS SECTION
@@ -453,18 +519,32 @@ canvas#modal-chart {
 	text-align: center;
 }
 
-.loading-spinner {
-	width: 40px; height: 40px;
-	border: 3px solid var(--border);
-	border-top-color: var(--accent);
-	border-radius: 50%;
-	animation: spin .8s linear infinite;
+/* Container que centraliza os dois elementos */
+.loading-logo-container {
+    position: relative;
+    width: 80px;  /* Tamanho aumentado do círculo */
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
-@keyframes spin { to { transform: rotate(360deg); } }
 
-.loading-title   { font-size: 1rem; font-weight: 700; color: var(--text-primary); }
-.loading-message { font-size: 0.8rem; color: var(--text-muted); max-width: 320px; }
+/* Container que centraliza os elementos */
+.loading-logo-container {
+    position: relative;
+    width: 100px;  /* Ajuste este valor para aumentar ou diminuir tudo junto */
+    height: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
 
+.loading-logo-img {
+    width: 100px;
+    height: auto;
+    z-index: 10;
+    position: relative;
+}
 
 /* ===========================
    PAGINAÇÃO
@@ -528,4 +608,46 @@ canvas#modal-chart {
 	.search-input { border-right: 1px solid var(--border); border-radius: 8px; }
 	.search-btn { border-radius: 8px; }
 	.autocomplete-dropdown { right: 0; }
+}
+
+/* Classes Adicionais para o Novo Modal Sobre */
+.modal-subtitle {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    margin-bottom: 24px;
+}
+
+.modal-section-title.warning {
+    color: var(--accent);
+}
+
+.modal-section-text {
+    font-size: 0.86rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin: 0;
+}
+
+.modal-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-top: 16px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+}
+
+.modal-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s;
+}
+
+.modal-link:hover {
+    color: var(--accent);
 }

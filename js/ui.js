@@ -279,7 +279,7 @@ function initCharts(topCBOs, faixas) {
 
   function draw() {
     drawBarChart(canvasProfissoes, topCBOs, '#f59e0b');
-    drawBarChart(canvasFaixa,      faixas,  '#60a5fa');
+    drawVerticalBarChart(canvasFaixa, faixas, '#60a5fa');
   }
   draw();
   initChartResize(draw);
