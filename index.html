@@ -42,8 +42,13 @@
 			<span class="period-filter-label">Período de análise:</span>
 			<div class="period-filter-group" id="period-selector">
 				<button class="period-btn active" data-period="2026">2026</button>
-				<button class="period-btn" data-period="2025">2025 - 2026</button>
-				<button class="period-btn" data-period="2022">Todo o período (22-26)</button>
+				<div class="period-custom" id="period-custom">
+					<span class="period-custom-label">De</span>
+					<select id="period-start" class="period-select" aria-label="Ano inicial"></select>
+					<span class="period-custom-label">até</span>
+					<select id="period-end" class="period-select" aria-label="Ano final"></select>
+					<button type="button" id="period-apply" class="period-apply">Aplicar</button>
+				</div>
 			</div>
 		</div>
 
@@ -226,7 +231,7 @@
 			</div>
 
 			<div class="modal-section">
-				<div class="modal-section-title">Evolução anual de acidentes (2022–2026)</div>
+				<div class="modal-section-title" id="modal-chart-title">Evolução anual de acidentes</div>
 				<canvas id="modal-chart"></canvas>
 			</div>
 		</div>
@@ -241,7 +246,7 @@
 	        <h2 class="modal-title" id="sobre-title">Acidentes de Trabalho no Brasil</h2>
 		
 	        <p class="modal-subtitle">
-	            Trabalho de aplicação prática dos conteúdos estudados <br>
+	            <strong>Projeto de aplicação prática</strong> dos conteúdos estudados <br>
 				na disciplina de <strong>Estrutura de Dados</strong> - UFRGS -> INF01203 para a resolução de <strong>problemas reais</strong>.
 	        </p>
 
@@ -305,7 +310,7 @@
                 <img src="img/logo.png" alt="Logo CAT" class="loading-logo-img">
             </div>
 
-            <div class="loading-title">Carregando dados</div>
+            <div class="loading-title">Quase lá, aguarde um instante.</div>
             <div id="loading-message" class="loading-message">Iniciando…</div>
         </div>
     </div>

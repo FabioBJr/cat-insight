@@ -177,22 +177,89 @@ strong { color: var(--text-primary); font-weight: 600; }
 	box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
+/* Seletor de período personalizado */
+.period-custom {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 10px;
+	border-radius: 6px;
+	color: var(--text-muted);
+	font-size: 0.82rem;
+	font-weight: 600;
+	transition: all 0.2s ease;
+}
+
+.period-custom.active {
+	background: var(--accent);
+	color: var(--bg-primary);
+	box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.period-select {
+	background: var(--bg-primary);
+	color: var(--text-primary);
+	border: 1px solid var(--border);
+	border-radius: 4px;
+	font-family: inherit;
+	font-size: 0.82rem;
+	font-weight: 600;
+	padding: 4px 6px;
+	cursor: pointer;
+	outline: none;
+}
+
+.period-select:focus { border-color: var(--accent); }
+
+.period-apply {
+	background: var(--accent);
+	color: #0f1117;
+	border: none;
+	border-radius: 4px;
+	font-family: inherit;
+	font-size: 0.78rem;
+	font-weight: 700;
+	padding: 5px 12px;
+	cursor: pointer;
+	transition: background .2s, opacity .2s;
+}
+.period-apply:hover:not(:disabled) { background: #fbbf24; }
+.period-apply:disabled { opacity: 0.35; cursor: default; }
+
+/* Quando o seletor é o filtro ativo (fundo laranja), inverte as cores do botão */
+.period-custom.active .period-apply {
+	background: var(--bg-primary);
+	color: var(--accent);
+}
+
 /* Responsividade para telas menores */
 @media (max-width: 600px) {
 	.period-filter-wrapper {
 		flex-direction: column;
-		align-items: flex-start;
+		align-items: stretch;
 		gap: 12px;
 	}
 	.period-filter-group {
 		width: 100%;
+		box-sizing: border-box;
 		display: flex;
+		flex-wrap: wrap;   /* quebra em duas linhas dentro do container */
+		gap: 4px;
 	}
 	.period-btn {
-		flex: 1;
+		flex: 1 1 100%;
 		text-align: center;
-		padding: 8px 4px;
+		padding: 8px 6px;
 	}
+
+	/* Seletor De/até/Aplicar ocupa a linha de baixo, em largura total */
+	.period-custom {
+		flex: 1 1 100%;
+		box-sizing: border-box;
+		justify-content: space-between;
+		padding: 6px 8px;
+	}
+	.period-select { flex: 1; min-width: 0; }
 }
 
 /* ===========================
@@ -519,6 +586,18 @@ canvas#modal-chart {
 	text-align: center;
 }
 
+.loading-title {
+	font-size: 1.25rem; font-weight: 700;
+	color: var(--text-primary);
+	letter-spacing: -0.01em;
+	margin-top: 8px;
+}
+
+.loading-message {
+	font-size: 0.9rem; font-weight: 500;
+	color: var(--text-secondary);
+}
+
 /* Container que centraliza os dois elementos */
 .loading-logo-container {
     position: relative;
@@ -608,6 +687,17 @@ canvas#modal-chart {
 	.search-input { border-right: 1px solid var(--border); border-radius: 8px; }
 	.search-btn { border-radius: 8px; }
 	.autocomplete-dropdown { right: 0; }
+
+	/* Gráficos principais: mais altura e menos padding para caber bem no celular */
+	.chart-card { padding: 16px; min-width: 0; }
+	.chart-card-header { flex-wrap: wrap; margin-bottom: 14px; }
+	canvas.bar-chart { height: 320px; }
+}
+
+@media (max-width: 480px) {
+	.charts-section { padding-top: 40px; padding-bottom: 40px; }
+	.chart-card { padding: 12px; }
+	.chart-card-subtitle { margin-left: 0; width: 100%; }
 }
 
 /* Classes Adicionais para o Novo Modal Sobre */

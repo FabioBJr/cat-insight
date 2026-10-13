@@ -206,10 +206,19 @@ function openModal(record) {
   overlay.classList.add('visible');
   document.body.style.overflow = 'hidden';
 
+  const anosGrafico = record.anosPeriodo ?? record.anos;
+  const valoresGrafico = record.evolucaoPeriodo ?? record.evolucao;
+
+  const tituloGrafico = document.getElementById('modal-chart-title');
+  if (tituloGrafico) {
+    const { inicio, fim } = periodoSelecionado;
+    tituloGrafico.textContent = `Evolução anual de acidentes (${inicio === fim ? inicio : inicio + '–' + fim})`;
+  }
+
   requestAnimationFrame(() => {
     const canvas = document.getElementById('modal-chart');
-    if (record.evolucao?.length && record.anos?.length) {
-      drawLineChart(canvas, record.evolucao, record.anos);
+    if (valoresGrafico?.length && anosGrafico?.length) {
+      drawLineChart(canvas, valoresGrafico, anosGrafico);
     } else {
       console.warn('[ui] openModal: sem dados de evolução para', record.municipio);
     }
@@ -270,7 +279,10 @@ function hideLoading() {
   if (el) el.classList.remove('visible');
 }
 
-function initCharts(topCBOs, faixas) {
+let redesenharGraficos = null;
+let resizeRegistrado   = false;
+
+function initCharts(topCBOs, faixas, maxProfissao = null, maxFaixa = null) {
   const canvasProfissoes = document.getElementById('chart-profissoes');
   const canvasFaixa      = document.getElementById('chart-faixa');
   if (!canvasProfissoes || !canvasFaixa) { console.error('[ui] initCharts: canvas não encontrado'); return; }
@@ -278,10 +290,16 @@ function initCharts(topCBOs, faixas) {
   if (!faixas?.length)  { console.warn('[ui] initCharts: faixas vazio');  return; }
 
   function draw() {
-    drawBarChart(canvasProfissoes, topCBOs, '#f59e0b');
-    drawVerticalBarChart(canvasFaixa, faixas, '#60a5fa');
+    drawBarChart(canvasProfissoes, topCBOs, '#f59e0b', maxProfissao);
+    drawVerticalBarChart(canvasFaixa, faixas, '#60a5fa', maxFaixa);
   }
   draw();
-  initChartResize(draw);
+
+  // Guarda o desenho mais recente; o listener de resize é registrado uma única vez
+  redesenharGraficos = draw;
+  if (!resizeRegistrado) {
+    initChartResize(() => redesenharGraficos && redesenharGraficos());
+    resizeRegistrado = true;
+  }
   console.log('[ui] initCharts: ok');
 }

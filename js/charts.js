@@ -10,13 +10,28 @@ const TEXT_MUTED   = '#64748b';
 const BORDER_COLOR = '#2a2d3e';
 const BG_BAR       = '#2a3040';
 
+// Corta o texto com reticências para caber em maxW pixels (usa a fonte atual do ctx)
+function fitText(ctx, text, maxW) {
+  if (ctx.measureText(text).width <= maxW) return text;
+  let s = text;
+  while (s.length > 1 && ctx.measureText(s + '…').width > maxW) s = s.slice(0, -1);
+  return s.trimEnd() + '…';
+}
+
+// Abrevia números grandes para telas estreitas (34858 -> "34,9k")
+function abreviaNumero(n) {
+  if (n < 1000) return String(n);
+  const k = n / 1000;
+  return (k >= 100 ? Math.round(k) : k.toFixed(1).replace('.', ',').replace(',0', '')) + 'k';
+}
+
 // ------------------------------------------------------------
 // Gráfico de barras horizontais - profissões
 // canvas: elemento <canvas>
 // data:   [{ label, valor }]
 // color:  cor das barras
 // ------------------------------------------------------------
-function drawBarChart(canvas, data, color = ACCENT) {
+function drawBarChart(canvas, data, color = ACCENT, forceMaxVal = null) {
   const ctx    = canvas.getContext('2d');
   const dpr    = window.devicePixelRatio || 1;
   const W      = canvas.offsetWidth;
@@ -28,18 +43,23 @@ function drawBarChart(canvas, data, color = ACCENT) {
 
   ctx.clearRect(0, 0, W, H);
 
-  const MAX_CHARS    = 75;
-  const truncate     = (s) => s.length > MAX_CHARS ? s.slice(0, MAX_CHARS - 1) + '…' : s;
-  const labelsFit    = data.map(d => ({ ...d, labelFit: truncate(d.label) }));
+  // Modo compacto para celulares: fontes/margens menores e rótulos mais curtos
+  const compact      = W < 520;
+  const labelFont    = `500 ${compact ? 11 : 12}px Inter, sans-serif`;
 
-  ctx.font = `500 12px Inter, sans-serif`;
+  // Os rótulos podem ocupar no máximo uma fração da largura, o resto fica para as barras
+  const maxLabelArea = Math.floor(W * (compact ? 0.38 : 0.45));
+  ctx.font = labelFont;
+  const labelsFit    = data.map(d => ({ ...d, labelFit: fitText(ctx, d.label, maxLabelArea) }));
+
   const maxLabelW   = Math.max(...labelsFit.map(d => ctx.measureText(d.labelFit).width));
   const paddingLeft  = Math.ceil(maxLabelW) + 16;
-  const paddingRight = 72;
+  const paddingRight = compact ? 52 : 72; // espaço para o número à direita da barra mais longa
   const paddingTop   = 12;
   const paddingBot   = 24;
 
-  const maxVal    = Math.max(...data.map(d => d.valor));
+  const dataMax = Math.max(...data.map(d => d.valor));
+  const maxVal = Math.max(forceMaxVal || 0, dataMax);
   const barCount  = data.length;
   const totalH    = H - paddingTop - paddingBot;
   const barH      = Math.floor((totalH / barCount) * 0.55);
@@ -101,14 +121,14 @@ function drawBarChart(canvas, data, color = ACCENT) {
 	ctx.fill();
 
 	ctx.fillStyle    = TEXT_PRIMARY;
-	ctx.font         = `500 12px Inter, sans-serif`;
+	ctx.font         = `500 ${compact ? 11 : 12}px Inter, sans-serif`;
 	ctx.textAlign    = 'right';
 	ctx.textBaseline = 'middle';
-	ctx.fillText(labelsFit[i].labelFit, 328, centerY);
+	ctx.fillText(labelsFit[i].labelFit, paddingLeft - 12, centerY);
 
 	// Valor à direita
 	ctx.fillStyle  = TEXT_MUTED;
-	ctx.font       = `600 11px Inter, sans-serif`;
+	ctx.font       = `600 ${compact ? 10 : 11}px Inter, sans-serif`;
 	ctx.textAlign  = 'left';
 	ctx.fillText(formatNumber(item.valor), paddingLeft + barW + 8, centerY);
   });
@@ -120,7 +140,7 @@ function drawBarChart(canvas, data, color = ACCENT) {
 // data:   [{ label, valor }]
 // color:  cor das barras
 // ------------------------------------------------------------
-function drawVerticalBarChart(canvas, data, color = '#3b82f6') { // Azul padrão da sua imagem
+function drawVerticalBarChart(canvas, data, color = '#3b82f6', forceMaxVal = null) { // Azul padrão da sua imagem
   const ctx    = canvas.getContext('2d');
   const dpr    = window.devicePixelRatio || 1;
   const W      = canvas.offsetWidth;
@@ -131,13 +151,17 @@ function drawVerticalBarChart(canvas, data, color = '#3b82f6') { // Azul padrão
   ctx.scale(dpr, dpr);
   ctx.clearRect(0, 0, W, H);
 
+  // Modo compacto para celulares: margens e fontes menores
+  const compact      = W < 520;
+
   // Inversão das margens para o formato vertical
-  const paddingLeft  = 40;
-  const paddingRight = 16;
+  const paddingLeft  = compact ? 32 : 40;
+  const paddingRight = compact ? 8  : 16;
   const paddingTop   = 24; // Espaço para o valor acima da barra
   const paddingBot   = 24; // Espaço para o label abaixo da barra
 
-  const maxVal   = Math.max(...data.map(d => d.valor));
+  const dataMax = Math.max(...data.map(d => d.valor));
+  const maxVal = Math.max(forceMaxVal || 0, dataMax);
   const barCount = data.length;
   const totalW   = W - paddingLeft - paddingRight;
   const barW     = Math.floor((totalW / barCount) * 0.55); // 55% largura da barra
@@ -205,17 +229,20 @@ function drawVerticalBarChart(canvas, data, color = '#3b82f6') { // Azul padrão
     ctx.fill();
 
     // Valores totais posicionados acima de cada barra (ex: 34.858)
+    // Em telas estreitas o número completo não cabe no espaço da barra: abrevia (34,9k)
+    const slotW      = barW + gap;
+    const valorTexto = compact && slotW < 56 ? abreviaNumero(item.valor) : formatNumber(item.valor);
     ctx.fillStyle    = TEXT_MUTED;
-    ctx.font         = `600 11px Inter, sans-serif`;
+    ctx.font         = `600 ${compact ? 10 : 11}px Inter, sans-serif`;
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'bottom';
-    ctx.fillText(formatNumber(item.valor), centerX, y - 6);
+    ctx.fillText(valorTexto, centerX, y - 6);
 
     // Labels do eixo X posicionados abaixo de cada barra (ex: 18-24)
     ctx.fillStyle    = TEXT_PRIMARY;
-    ctx.font         = `500 12px Inter, sans-serif`;
+    ctx.font         = `500 ${compact ? 10 : 12}px Inter, sans-serif`;
     ctx.textBaseline = 'top';
-    ctx.fillText(item.label, centerX, paddingTop + availH + 8);
+    ctx.fillText(fitText(ctx, item.label, slotW - 2), centerX, paddingTop + availH + 8);
   });
 }
 
@@ -237,16 +264,18 @@ function drawLineChart(canvas, values, labels) {
 
   ctx.clearRect(0, 0, W, H);
 
-  const padL = 12, padR = 12, padT = 16, padB = 28;
+  // Padding lateral generoso: os rótulos são centralizados em cada ponto,
+  // então o primeiro/último precisam de espaço para não serem cortados
+  const padL = 36, padR = 36, padT = 24, padB = 28;
   const innerW = W - padL - padR;
   const innerH = H - padT - padB;
 
-  const minVal = Math.min(...values);
-  const maxVal = Math.max(...values);
+  const minVal = 0; // Fix origin to 0 to prevent visual distortion of drops
+  const maxVal = Math.max(...values, 10); // Ensure a minimum scale of at least 10 for very small cities
   const range  = maxVal - minVal || 1;
 
   const points = values.map((v, i) => ({
-	x: padL + (i / (values.length - 1)) * innerW,
+	x: padL + (values.length > 1 ? i / (values.length - 1) : 0.5) * innerW,
 	y: padT + (1 - (v - minVal) / range) * innerH,
   }));
 
@@ -314,11 +343,19 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-// Redimensiona gráficos ao redimensionar janela
+// Redimensiona gráficos ao redimensionar janela / girar o celular
 function initChartResize(redrawFn) {
   let timer;
-  window.addEventListener('resize', () => {
+  let lastW = window.innerWidth;
+  const onChange = () => {
 	clearTimeout(timer);
-	timer = setTimeout(redrawFn, 120);
-  });
+	timer = setTimeout(() => {
+	  // Em celulares, rolar a página dispara 'resize' (barra de endereço): só redesenha se a largura mudou
+	  if (window.innerWidth === lastW) return;
+	  lastW = window.innerWidth;
+	  redrawFn();
+	}, 120);
+  };
+  window.addEventListener('resize', onChange);
+  window.addEventListener('orientationchange', onChange);
 }

@@ -41,12 +41,15 @@ function formatNumber(n) {
   return Number(n).toLocaleString('pt-BR');
 }
 
-function agregaPorMunicipio() {
+function agregaPorMunicipio(anoInicio = 2022, anoFim = new Date().getFullYear()) {
   console.group('[search] agregaPorMunicipio');
   const mapa = new Map();
 
   for (let i = 0; i < heap.size; i++) {
     const r = heap.getByIndex(i);
+
+    // Filter by selected period
+    if (r.ano < anoInicio || r.ano > anoFim) continue;
 
     if (!mapa.has(r.municipio)) {
       mapa.set(r.municipio, {
@@ -86,6 +89,11 @@ function agregaPorMunicipio() {
     }
     entry.anos     = Object.keys(entry.porAno).sort();
     entry.evolucao = entry.anos.map(ano => entry.porAno[ano]);
+
+    // Série completa do período filtrado (anos sem registros = 0) para o gráfico do modal
+    entry.anosPeriodo = [];
+    for (let a = anoInicio; a <= anoFim; a++) entry.anosPeriodo.push(a);
+    entry.evolucaoPeriodo = entry.anosPeriodo.map(a => entry.porAno[a] || 0);
   });
 
   console.log(`[search] ${mapa.size} municípios agregados`);
@@ -108,18 +116,24 @@ function faixaEtaria(idade) {
   return '65+';
 }
 
-function agregaNacional() {
+function agregaNacional(anoInicio = 2022, anoFim = new Date().getFullYear()) {
   console.group('[search] agregaNacional');
   const porCBO   = {};
   const porFaixa = {};
   let   totalObitos = 0;
   let   anoMin = Infinity, anoMax = -Infinity;
+  let   totalRegistrosFiltrados = 0;
 
   const ordemFaixas = ['< 18', '18-24', '25-34', '35-44', '45-54', '55-64', '65+'];
   ordemFaixas.forEach(f => porFaixa[f] = 0);
 
   for (let i = 0; i < heap.size; i++) {
     const r = heap.getByIndex(i);
+
+    // Filter by selected period
+    if (r.ano < anoInicio || r.ano > anoFim) continue;
+
+    totalRegistrosFiltrados++;
 
     if (r.obito) totalObitos++;
     if (r.ano) {
@@ -146,13 +160,13 @@ function agregaNacional() {
 
   const periodo = anoMin === Infinity ? '-' : (anoMin === anoMax ? String(anoMin) : `${anoMin}–${anoMax}`);
 
-  console.log(`[search] total=${heap.size} | óbitos=${totalObitos} | período=${periodo}`);
+  console.log(`[search] total=${totalRegistrosFiltrados} | óbitos=${totalObitos} | período=${periodo}`);
   console.groupEnd();
 
   return {
     topCBOs,
     faixas,
-    totalRegistros: heap.size,
+    totalRegistros: totalRegistrosFiltrados,
     totalObitos,
     periodo,
   };

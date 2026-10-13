@@ -97,3 +97,7 @@ Durante o desenvolvimento foi utilizado o modelo Claude Sonnet 4.6 (Anthropic) c
 ## Licença
 
 Adicione aqui a licença do projeto (ex.: MIT), se aplicável.
+
+
+## Outros sites interessantes
+- [Observatório de Segurança e Saúde no Trabalho](https://smartlab.mpt.mp.br/sst)
