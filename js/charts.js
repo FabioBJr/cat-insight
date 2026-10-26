@@ -3,242 +3,223 @@
 // ============================================================
 
 const ACCENT       = '#f59e0b';
-const ACCENT_DIM   = 'rgba(245,158,11,0.15)';
-const DANGER       = '#ef4444';
 const TEXT_PRIMARY = '#f1f5f9';
 const TEXT_MUTED   = '#64748b';
-const BORDER_COLOR = '#2a2d3e';
-const BG_BAR       = '#2a3040';
+const BAR_BG       = '#2a3040';
+const GRID_COLOR   = 'rgba(100, 116, 139, 0.2)';
+const AXIS_COLOR   = '#475569';
 
-// Corta o texto com reticências para caber em maxW pixels (usa a fonte atual do ctx)
-function fitText(ctx, text, maxW) {
-  if (ctx.measureText(text).width <= maxW) return text;
+// Abaixo desta largura (px) os gráficos entram em modo compacto (celulares)
+const COMPACT_WIDTH = 520;
+
+// Ajusta o canvas à densidade de pixels da tela e retorna contexto + dimensões lógicas
+function setupCanvas(canvas) {
+  const ctx    = canvas.getContext('2d');
+  const dpr    = window.devicePixelRatio || 1;
+  const width  = canvas.offsetWidth;
+  const height = canvas.offsetHeight;
+
+  canvas.width  = width * dpr;
+  canvas.height = height * dpr;
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, width, height);
+
+  return { ctx, width, height };
+}
+
+// Corta o texto com reticências para caber em maxWidth pixels (usa a fonte atual do ctx)
+function fitText(ctx, text, maxWidth) {
+  if (ctx.measureText(text).width <= maxWidth) return text;
   let s = text;
-  while (s.length > 1 && ctx.measureText(s + '…').width > maxW) s = s.slice(0, -1);
+  while (s.length > 1 && ctx.measureText(s + '…').width > maxWidth) s = s.slice(0, -1);
   return s.trimEnd() + '…';
 }
 
 // Abrevia números grandes para telas estreitas (34858 -> "34,9k")
-function abreviaNumero(n) {
+function abbreviateNumber(n) {
   if (n < 1000) return String(n);
   const k = n / 1000;
   return (k >= 100 ? Math.round(k) : k.toFixed(1).replace('.', ',').replace(',0', '')) + 'k';
 }
 
+// Rótulo dos eixos (ex: 10000 vira "10k")
+function formatAxisValue(value) {
+  return value >= 1000 ? Math.round(value / 1000) + 'k' : String(Math.round(value));
+}
+
 // ------------------------------------------------------------
 // Gráfico de barras horizontais - profissões
-// canvas: elemento <canvas>
-// data:   [{ label, valor }]
-// color:  cor das barras
+// canvas:      elemento <canvas>
+// data:        [{ label, value }]
+// color:       cor das barras
+// forceMaxVal: máximo fixo da escala (mantém a mesma referência entre filtros)
 // ------------------------------------------------------------
 function drawBarChart(canvas, data, color = ACCENT, forceMaxVal = null) {
-  const ctx    = canvas.getContext('2d');
-  const dpr    = window.devicePixelRatio || 1;
-  const W      = canvas.offsetWidth;
-  const H      = canvas.offsetHeight;
-
-  canvas.width  = W * dpr;
-  canvas.height = H * dpr;
-  ctx.scale(dpr, dpr);
-
-  ctx.clearRect(0, 0, W, H);
+  const { ctx, width: W, height: H } = setupCanvas(canvas);
 
   // Modo compacto para celulares: fontes/margens menores e rótulos mais curtos
-  const compact      = W < 520;
-  const labelFont    = `500 ${compact ? 11 : 12}px Inter, sans-serif`;
+  const compact = W < COMPACT_WIDTH;
 
   // Os rótulos podem ocupar no máximo uma fração da largura, o resto fica para as barras
   const maxLabelArea = Math.floor(W * (compact ? 0.38 : 0.45));
-  ctx.font = labelFont;
-  const labelsFit    = data.map(d => ({ ...d, labelFit: fitText(ctx, d.label, maxLabelArea) }));
+  ctx.font = `500 ${compact ? 11 : 12}px Inter, sans-serif`;
+  const labels = data.map(d => fitText(ctx, d.label, maxLabelArea));
 
-  const maxLabelW   = Math.max(...labelsFit.map(d => ctx.measureText(d.labelFit).width));
+  const maxLabelW    = Math.max(...labels.map(l => ctx.measureText(l).width));
   const paddingLeft  = Math.ceil(maxLabelW) + 16;
   const paddingRight = compact ? 52 : 72; // espaço para o número à direita da barra mais longa
   const paddingTop   = 12;
   const paddingBot   = 24;
 
-  const dataMax = Math.max(...data.map(d => d.valor));
-  const maxVal = Math.max(forceMaxVal || 0, dataMax);
-  const barCount  = data.length;
-  const totalH    = H - paddingTop - paddingBot;
-  const barH      = Math.floor((totalH / barCount) * 0.55);
-  const gap       = Math.floor((totalH / barCount) * 0.45);
-  const availW    = W - paddingLeft - paddingRight;
+  const maxVal = Math.max(forceMaxVal || 0, ...data.map(d => d.value));
+  const totalH = H - paddingTop - paddingBot;
+  const barH   = Math.floor((totalH / data.length) * 0.55);
+  const gap    = Math.floor((totalH / data.length) * 0.45);
+  const availW = W - paddingLeft - paddingRight;
 
-  // DESENHANDO AS LINHAS DE GRADE VERTICAIS E VALORES DO EIXO X
-  const linhasGrade = 4; // Dividindo em 4 partes
-  
-  ctx.font = '500 11px Inter, sans-serif'; 
-  ctx.textAlign = 'center'; 
+  // Linhas de grade verticais e valores do eixo X
+  const gridLines = 4;
+  ctx.font         = '500 11px Inter, sans-serif';
+  ctx.textAlign    = 'center';
   ctx.textBaseline = 'top';
 
-  for (let j = 0; j <= linhasGrade; j++) {
-    // Calcula a posição X da linha
-    const xGrade = paddingLeft + (availW / linhasGrade) * j;
-    const valorLinha = (maxVal / linhasGrade) * j;
-    
-    // Formata o número (ex: 10000 vira "10k")
-    let textoValor = Math.round(valorLinha).toString();
-    if (valorLinha >= 1000) {
-      textoValor = Math.round(valorLinha / 1000) + 'k';
-    }
+  for (let j = 0; j <= gridLines; j++) {
+    const xGrid = paddingLeft + (availW / gridLines) * j;
 
-    // Desenha o número abaixo da grade
-    ctx.fillStyle = TEXT_MUTED; 
-    ctx.fillText(textoValor, xGrade, paddingTop + totalH + 8);
+    // Número abaixo da grade
+    ctx.fillStyle = TEXT_MUTED;
+    ctx.fillText(formatAxisValue((maxVal / gridLines) * j), xGrid, paddingTop + totalH + 8);
 
-    // Desenha a linha vertical
-    ctx.strokeStyle = 'rgba(100, 116, 139, 0.2)'; 
-    ctx.lineWidth = 1;
+    // Linha vertical
+    ctx.strokeStyle = GRID_COLOR;
+    ctx.lineWidth   = 1;
     ctx.beginPath();
-    ctx.moveTo(xGrade, paddingTop); 
-    ctx.lineTo(xGrade, paddingTop + totalH); 
+    ctx.moveTo(xGrid, paddingTop);
+    ctx.lineTo(xGrid, paddingTop + totalH);
     ctx.stroke();
   }
 
-  // DESENHANDO O EIXO Y PRINCIPAL (A LINHA QUE SEPARA OS TEXTOS)
-  ctx.strokeStyle = '#475569'; 
-  ctx.lineWidth = 2;
+  // Eixo Y principal (linha que separa os textos das barras)
+  ctx.strokeStyle = AXIS_COLOR;
+  ctx.lineWidth   = 2;
   ctx.beginPath();
-  ctx.moveTo(paddingLeft, paddingTop); 
-  ctx.lineTo(paddingLeft, paddingTop + totalH); 
+  ctx.moveTo(paddingLeft, paddingTop);
+  ctx.lineTo(paddingLeft, paddingTop + totalH);
   ctx.stroke();
 
   data.forEach((item, i) => {
-	const y       = paddingTop + i * (barH + gap);
-	const barW    = Math.round((item.valor / maxVal) * availW);
-	const centerY = y + barH / 2;
+    const y       = paddingTop + i * (barH + gap);
+    const barW    = Math.round((item.value / maxVal) * availW);
+    const centerY = y + barH / 2;
 
-	// Barra de fundo
-	ctx.fillStyle = BG_BAR;
-	roundRect(ctx, paddingLeft, y, availW, barH, 4);
-	ctx.fill();
+    // Barra de fundo
+    ctx.fillStyle = BAR_BG;
+    roundRect(ctx, paddingLeft, y, availW, barH, 4);
+    ctx.fill();
 
-	// Barra de valor
-	ctx.fillStyle = color;
-	roundRect(ctx, paddingLeft, y, barW, barH, 4);
-	ctx.fill();
+    // Barra de valor
+    ctx.fillStyle = color;
+    roundRect(ctx, paddingLeft, y, barW, barH, 4);
+    ctx.fill();
 
-	ctx.fillStyle    = TEXT_PRIMARY;
-	ctx.font         = `500 ${compact ? 11 : 12}px Inter, sans-serif`;
-	ctx.textAlign    = 'right';
-	ctx.textBaseline = 'middle';
-	ctx.fillText(labelsFit[i].labelFit, paddingLeft - 12, centerY);
+    // Rótulo à esquerda do eixo
+    ctx.fillStyle    = TEXT_PRIMARY;
+    ctx.font         = `500 ${compact ? 11 : 12}px Inter, sans-serif`;
+    ctx.textAlign    = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(labels[i], paddingLeft - 12, centerY);
 
-	// Valor à direita
-	ctx.fillStyle  = TEXT_MUTED;
-	ctx.font       = `600 ${compact ? 10 : 11}px Inter, sans-serif`;
-	ctx.textAlign  = 'left';
-	ctx.fillText(formatNumber(item.valor), paddingLeft + barW + 8, centerY);
+    // Valor à direita da barra
+    ctx.fillStyle = TEXT_MUTED;
+    ctx.font      = `600 ${compact ? 10 : 11}px Inter, sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.fillText(formatNumber(item.value), paddingLeft + barW + 8, centerY);
   });
 }
 
 // ------------------------------------------------------------
 // Gráfico de barras verticais - faixa etária
-// canvas: elemento <canvas>
-// data:   [{ label, valor }]
-// color:  cor das barras
+// canvas:      elemento <canvas>
+// data:        [{ label, value }]
+// color:       cor das barras
+// forceMaxVal: máximo fixo da escala (mantém a mesma referência entre filtros)
 // ------------------------------------------------------------
-function drawVerticalBarChart(canvas, data, color = '#3b82f6', forceMaxVal = null) { // Azul padrão da sua imagem
-  const ctx    = canvas.getContext('2d');
-  const dpr    = window.devicePixelRatio || 1;
-  const W      = canvas.offsetWidth;
-  const H      = canvas.offsetHeight;
-
-  canvas.width  = W * dpr;
-  canvas.height = H * dpr;
-  ctx.scale(dpr, dpr);
-  ctx.clearRect(0, 0, W, H);
+function drawVerticalBarChart(canvas, data, color = '#3b82f6', forceMaxVal = null) {
+  const { ctx, width: W, height: H } = setupCanvas(canvas);
 
   // Modo compacto para celulares: margens e fontes menores
-  const compact      = W < 520;
+  const compact = W < COMPACT_WIDTH;
 
-  // Inversão das margens para o formato vertical
   const paddingLeft  = compact ? 32 : 40;
   const paddingRight = compact ? 8  : 16;
-  const paddingTop   = 24; // Espaço para o valor acima da barra
-  const paddingBot   = 24; // Espaço para o label abaixo da barra
+  const paddingTop   = 24; // espaço para o valor acima da barra
+  const paddingBot   = 24; // espaço para o rótulo abaixo da barra
 
-  const dataMax = Math.max(...data.map(d => d.valor));
-  const maxVal = Math.max(forceMaxVal || 0, dataMax);
-  const barCount = data.length;
-  const totalW   = W - paddingLeft - paddingRight;
-  const barW     = Math.floor((totalW / barCount) * 0.55); // 55% largura da barra
-  const gap      = Math.floor((totalW / barCount) * 0.45); // 45% espaçamento
-  const availH   = H - paddingTop - paddingBot;
+  const maxVal = Math.max(forceMaxVal || 0, ...data.map(d => d.value));
+  const totalW = W - paddingLeft - paddingRight;
+  const barW   = Math.floor((totalW / data.length) * 0.55); // 55% largura da barra
+  const gap    = Math.floor((totalW / data.length) * 0.45); // 45% espaçamento
+  const availH = H - paddingTop - paddingBot;
 
-  // DESENHANDO AS LINHAS DE GRADE E OS VALORES DO EIXO y
-  // Configurando fonte dos números laterais
-  ctx.font = '500 11px Inter, sans-serif';
-  ctx.textAlign = 'right';
-  ctx.textBaseLine = 'middle';
+  // Linhas de grade horizontais e valores do eixo Y
+  const gridLines = 5;
+  ctx.font         = '500 11px Inter, sans-serif';
+  ctx.textAlign    = 'right';
+  ctx.textBaseline = 'middle';
 
-  const linhasGrade = 5; // Quantidade de linhas horizontais
+  for (let j = 0; j <= gridLines; j++) {
+    const yGrid = paddingTop + (availH / gridLines) * j;
 
-  for (let j = 0; j <= linhasGrade; j++) {
-    // Calcula a posição Y de cada linha
-    const yGrade = paddingTop + (availH / linhasGrade) * j;
+    // Topo (j=0) é maxVal, base (j=gridLines) é 0
+    const lineValue = maxVal - (maxVal / gridLines) * j;
 
-    // Calcula o valor matemático correspondente a essa altura
-    // Topo (j=0) é maxVal, base (j=5) é 0.
-    const valorLinha = maxVal - (maxVal / linhasGrade) * j;
+    // Número à esquerda de onde a linha começa
+    ctx.fillStyle = TEXT_MUTED;
+    ctx.fillText(formatAxisValue(lineValue), paddingLeft - 8, yGrid);
 
-    // Formata o número (ex: 50000 vira "50k")
-    let textoValor = Math.round(valorLinha).toString();
-    if (valorLinha >= 1000) {
-      textoValor = Math.round(valorLinha / 1000) + 'k';
-    }
-
-    // Desenha o número um pouco à esquerda de onde a linha começa
-    ctx.fillStyle = TEXT_MUTED; 
-    ctx.fillText(textoValor, paddingLeft - 8, yGrade);
-
-    // Desenha a linha
-    ctx.strokeStyle = 'rgba(100, 116, 139, 0.2)'; 
-    ctx.lineWidth = 1;
+    // Linha horizontal
+    ctx.strokeStyle = GRID_COLOR;
+    ctx.lineWidth   = 1;
     ctx.beginPath();
-    ctx.moveTo(paddingLeft, yGrade); 
-    ctx.lineTo(W - paddingRight, yGrade); 
+    ctx.moveTo(paddingLeft, yGrid);
+    ctx.lineTo(W - paddingRight, yGrid);
     ctx.stroke();
   }
 
-  // DESENHANDO O EIXO X PRINCIPAL (BASE)
-  ctx.strokeStyle = '#475569'; 
-  ctx.lineWidth = 2;
+  // Eixo X principal (base)
+  ctx.strokeStyle = AXIS_COLOR;
+  ctx.lineWidth   = 2;
   ctx.beginPath();
-  ctx.moveTo(paddingLeft, paddingTop + availH); 
-  ctx.lineTo(W - paddingRight, paddingTop + availH); 
+  ctx.moveTo(paddingLeft, paddingTop + availH);
+  ctx.lineTo(W - paddingRight, paddingTop + availH);
   ctx.stroke();
 
   data.forEach((item, i) => {
-    // Calcula a posição no eixo X e a altura (eixo Y)
     const x       = paddingLeft + i * (barW + gap) + gap / 2;
-    const barH    = Math.round((item.valor / maxVal) * availH) || 1; // Garante 1px se o valor for muito baixo
+    const barH    = Math.round((item.value / maxVal) * availH) || 1; // garante 1px se o valor for muito baixo
     const y       = paddingTop + availH - barH;
     const centerX = x + barW / 2;
+    const slotW   = barW + gap;
 
-    // Barra de fundo (BG_BAR) ocupando a altura total disponível
-    ctx.fillStyle = BG_BAR;
+    // Barra de fundo ocupando a altura total disponível
+    ctx.fillStyle = BAR_BG;
     roundRect(ctx, x, paddingTop, barW, availH, 4);
     ctx.fill();
 
-    // Barra de valor preenchida de baixo para cima[cite: 2]
+    // Barra de valor preenchida de baixo para cima
     ctx.fillStyle = color;
     roundRect(ctx, x, y, barW, barH, 4);
     ctx.fill();
 
-    // Valores totais posicionados acima de cada barra (ex: 34.858)
-    // Em telas estreitas o número completo não cabe no espaço da barra: abrevia (34,9k)
-    const slotW      = barW + gap;
-    const valorTexto = compact && slotW < 56 ? abreviaNumero(item.valor) : formatNumber(item.valor);
+    // Valor acima da barra; em telas estreitas o número completo não cabe: abrevia (34,9k)
+    const valueText  = compact && slotW < 56 ? abbreviateNumber(item.value) : formatNumber(item.value);
     ctx.fillStyle    = TEXT_MUTED;
     ctx.font         = `600 ${compact ? 10 : 11}px Inter, sans-serif`;
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'bottom';
-    ctx.fillText(valorTexto, centerX, y - 6);
+    ctx.fillText(valueText, centerX, y - 6);
 
-    // Labels do eixo X posicionados abaixo de cada barra (ex: 18-24)
+    // Rótulo do eixo X abaixo da barra (ex: 18-24)
     ctx.fillStyle    = TEXT_PRIMARY;
     ctx.font         = `500 ${compact ? 10 : 12}px Inter, sans-serif`;
     ctx.textBaseline = 'top';
@@ -247,22 +228,13 @@ function drawVerticalBarChart(canvas, data, color = '#3b82f6', forceMaxVal = nul
 }
 
 // ------------------------------------------------------------
-// Mini linha de evolução - para o modal da cidade
+// Linha de evolução anual - modal da cidade
 // canvas: elemento <canvas>
-// values: [n, n, n, n, n]
-// labels: ['2019','2020',...]
+// values: [n, n, n, ...]
+// labels: [2022, 2023, ...]
 // ------------------------------------------------------------
 function drawLineChart(canvas, values, labels) {
-  const ctx  = canvas.getContext('2d');
-  const dpr  = window.devicePixelRatio || 1;
-  const W    = canvas.offsetWidth;
-  const H    = canvas.offsetHeight;
-
-  canvas.width  = W * dpr;
-  canvas.height = H * dpr;
-  ctx.scale(dpr, dpr);
-
-  ctx.clearRect(0, 0, W, H);
+  const { ctx, width: W, height: H } = setupCanvas(canvas);
 
   // Padding lateral generoso: os rótulos são centralizados em cada ponto,
   // então o primeiro/último precisam de espaço para não serem cortados
@@ -270,13 +242,13 @@ function drawLineChart(canvas, values, labels) {
   const innerW = W - padL - padR;
   const innerH = H - padT - padB;
 
-  const minVal = 0; // Fix origin to 0 to prevent visual distortion of drops
-  const maxVal = Math.max(...values, 10); // Ensure a minimum scale of at least 10 for very small cities
-  const range  = maxVal - minVal || 1;
+  // Escala começa em 0 para não distorcer quedas pequenas;
+  // mínimo de 10 para cidades com pouquíssimos registros
+  const maxVal = Math.max(...values, 10);
 
   const points = values.map((v, i) => ({
-	x: padL + (values.length > 1 ? i / (values.length - 1) : 0.5) * innerW,
-	y: padT + (1 - (v - minVal) / range) * innerH,
+    x: padL + (values.length > 1 ? i / (values.length - 1) : 0.5) * innerW,
+    y: padT + (1 - v / maxVal) * innerH,
   }));
 
   // Área preenchida abaixo da linha
@@ -285,10 +257,10 @@ function drawLineChart(canvas, values, labels) {
   points.forEach(p => ctx.lineTo(p.x, p.y));
   ctx.lineTo(points[points.length - 1].x, padT + innerH);
   ctx.closePath();
-  const grad = ctx.createLinearGradient(0, padT, 0, padT + innerH);
-  grad.addColorStop(0,   'rgba(245,158,11,0.25)');
-  grad.addColorStop(1,   'rgba(245,158,11,0)');
-  ctx.fillStyle = grad;
+  const gradient = ctx.createLinearGradient(0, padT, 0, padT + innerH);
+  gradient.addColorStop(0, 'rgba(245,158,11,0.25)');
+  gradient.addColorStop(1, 'rgba(245,158,11,0)');
+  ctx.fillStyle = gradient;
   ctx.fill();
 
   // Linha
@@ -301,34 +273,34 @@ function drawLineChart(canvas, values, labels) {
 
   // Pontos
   points.forEach(p => {
-	ctx.beginPath();
-	ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
-	ctx.fillStyle   = ACCENT;
-	ctx.fill();
-	ctx.strokeStyle = '#0f1117';
-	ctx.lineWidth   = 2;
-	ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+    ctx.fillStyle   = ACCENT;
+    ctx.fill();
+    ctx.strokeStyle = '#0f1117';
+    ctx.lineWidth   = 2;
+    ctx.stroke();
   });
 
-  // Labels do eixo X
+  // Rótulos do eixo X
   ctx.fillStyle    = TEXT_MUTED;
-  ctx.font         = `11px Inter, sans-serif`;
+  ctx.font         = '11px Inter, sans-serif';
   ctx.textAlign    = 'center';
   ctx.textBaseline = 'top';
   labels.forEach((label, i) => {
-	ctx.fillText(label, points[i].x, padT + innerH + 8);
+    ctx.fillText(label, points[i].x, padT + innerH + 8);
   });
 
   // Valores acima dos pontos
   ctx.fillStyle    = TEXT_PRIMARY;
-  ctx.font         = `bold 10px Inter, sans-serif`;
+  ctx.font         = 'bold 10px Inter, sans-serif';
   ctx.textBaseline = 'bottom';
   points.forEach((p, i) => {
-	ctx.fillText(formatNumber(values[i]), p.x, p.y - 6);
+    ctx.fillText(formatNumber(values[i]), p.x, p.y - 6);
   });
 }
 
-// Helper: retângulo com cantos arredondados
+// Retângulo com cantos arredondados
 function roundRect(ctx, x, y, w, h, r) {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
@@ -343,18 +315,18 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-// Redimensiona gráficos ao redimensionar janela / girar o celular
+// Redesenha os gráficos ao redimensionar a janela / girar o celular
 function initChartResize(redrawFn) {
   let timer;
-  let lastW = window.innerWidth;
+  let lastWidth = window.innerWidth;
   const onChange = () => {
-	clearTimeout(timer);
-	timer = setTimeout(() => {
-	  // Em celulares, rolar a página dispara 'resize' (barra de endereço): só redesenha se a largura mudou
-	  if (window.innerWidth === lastW) return;
-	  lastW = window.innerWidth;
-	  redrawFn();
-	}, 120);
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      // Em celulares, rolar a página dispara 'resize' (barra de endereço): só redesenha se a largura mudou
+      if (window.innerWidth === lastWidth) return;
+      lastWidth = window.innerWidth;
+      redrawFn();
+    }, 120);
   };
   window.addEventListener('resize', onChange);
   window.addEventListener('orientationchange', onChange);

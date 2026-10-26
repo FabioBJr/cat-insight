@@ -1,260 +1,214 @@
-function findCol(headers, name) {
-  const n = name.trim().toLowerCase();
-  return headers.findIndex(h => h.trim().toLowerCase() === n);
+// ============================================================
+// csvHandler.js - Download, parsing e carga dos CSVs de CAT (INSS) no Heap/Trie
+// ============================================================
+
+const CSV_PATH_PREFIX = 'data/D.SDA.PDA.005.CAT.';
+const UNKNOWN_CITY    = 'Municípios não informados';
+
+// Localiza o índice de uma coluna pelo nome (ignora maiúsculas e espaços nas pontas)
+function findColumn(headers, name) {
+  const target = name.trim().toLowerCase();
+  return headers.findIndex(h => h.trim().toLowerCase() === target);
 }
 
-function clean(val) {
-  if (val === undefined || val === null) return '';
-  return val.toString().trim().replace(/\r/g, '');
+function clean(value) {
+  if (value === undefined || value === null) return '';
+  return value.toString().trim().replace(/\r/g, '');
 }
 
+// Os CSVs mudaram de layout ao longo do tempo: o formato novo possui a coluna de óbito
 function detectFormat(headers) {
-  const hasColObit = headers.some(
+  const hasDeathColumn = headers.some(
     h => h.trim().toLowerCase() === 'indica óbito acidente'
   );
-  const formato = hasColObit ? 'novo' : 'antigo';
-  console.log(`[csvLoader] Formato detectado: ${formato} | colunas: ${headers.length}`);
-  return formato;
+  const format = hasDeathColumn ? 'new' : 'old';
+  console.log(`[csvHandler] Formato detectado: ${format} | colunas: ${headers.length}`);
+  return format;
 }
 
-function extractAno(dataStr) {
-  const s = clean(dataStr);
+function extractYear(dateStr) {
+  const s = clean(dateStr);
   if (!s || s === '0000/00' || s === '00/00/0000') return null;
-  if (/^\d{4}\/\d{2}$/.test(s)) return parseInt(s.slice(0, 4), 10);    // antigo: AAAA/MM
+  if (/^\d{4}\/\d{2}$/.test(s))       return parseInt(s.slice(0, 4), 10);  // antigo: AAAA/MM
   if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) return parseInt(s.slice(6, 10), 10); // novo: DD/MM/AAAA
-  console.warn(`[csvLoader] Formato de data não reconhecido: "${s}"`);
+  console.warn(`[csvHandler] Formato de data não reconhecido: "${s}"`);
   return null;
 }
 
-function parseMunicipio(val) {
-  const s = clean(val);
+// "330455-Rio de Janeiro" -> { code: "330455", name: "Rio de Janeiro" }
+function parseCity(value) {
+  const s    = clean(value);
   const dash = s.indexOf('-');
-  
-  let codigo = '';
-  let nome = s;
+
+  let code = '';
+  let name = s;
 
   if (dash !== -1) {
-    codigo = s.slice(0, dash).trim();
-    nome = s.slice(dash + 1).trim();
-  } else {
-    nome = s.trim();
+    code = s.slice(0, dash).trim();
+    name = s.slice(dash + 1).trim();
   }
 
-  if (nome.toLowerCase() === 'ignorado' || nome.includes('{ñ') || !nome) {
-    nome = 'Municípios não informados';
+  if (!name || name.toLowerCase() === 'ignorado' || name.includes('{ñ')) {
+    name = UNKNOWN_CITY;
   }
 
-  return { codigo, nome };
+  return { code, name };
 }
 
-function parseUF(val) {
-  const s = clean(val);
-
+function parseState(value) {
+  const s = clean(value);
   return s.toLowerCase() !== 'zerado' ? s : '-';
-
 }
 
-function parseCBO(val) {
-  const s = clean(val);
-  return s.split(/[-\s]/)[0].trim();
+// "784205-Alimentador de linha" -> "784205"
+function parseCbo(value) {
+  return clean(value).split(/[-\s]/)[0].trim();
 }
 
-function parseObito(val, formato) {
-  const s = clean(val).toLowerCase();
-  if (formato === 'novo') return s === 'sim';
-  return false;
+// O formato antigo não informa óbito; nesse caso o registro é contado como não fatal
+function parseDeath(value, format) {
+  if (format !== 'new') return false;
+  return clean(value).toLowerCase() === 'sim';
 }
 
-function calcIdade(dataNasc, anoAcidente) {
-  const s = clean(dataNasc);
-  if (!s || s === '00/00/0000' || !anoAcidente) return null;
-  const anoNasc = parseInt(s.slice(6, 10), 10);
-  if (isNaN(anoNasc) || anoNasc < 1900) return null;
-  return anoAcidente - anoNasc;
+function calcAge(birthDate, accidentYear) {
+  const s = clean(birthDate);
+  if (!s || s === '00/00/0000' || !accidentYear) return null;
+  const birthYear = parseInt(s.slice(6, 10), 10);
+  if (isNaN(birthYear) || birthYear < 1900) return null;
+  return accidentYear - birthYear;
 }
 
-function convertLine(valores, headers, formato) {
-  const get = (nome) => clean(valores[findCol(headers, nome)]);
+// Converte uma linha do CSV em um registro do Heap.
+function convertLine(values, headers, format) {
+  const get = (column) => clean(values[findColumn(headers, column)]);
 
-  const municipio = parseMunicipio(get('Munic Empr'));
-  const ano       = extractAno(get('Data Acidente'));
-
-  const campoObito = formato === 'novo' ? 'Indica Óbito Acidente' : 'Indica acidente';
-
-  const uf = parseUF(get('UF Munic. Empregador'));
+  const city        = parseCity(get('Munic Empr'));
+  const year        = extractYear(get('Data Acidente'));
+  const deathColumn = format === 'new' ? 'Indica Óbito Acidente' : 'Indica acidente';
 
   return {
-    municipio:    municipio.nome,
-    municipioCod: municipio.codigo,
-    uf,
-    ano,
-    cbo:          parseCBO(get('CBO')),
-    cboDesc:      clean(valores[findCol(headers, 'CBO.1')]),
+    city:         city.name,
+    cityCode:     city.code,
+    state:        parseState(get('UF Munic. Empregador')),
+    year,
+    cbo:          parseCbo(get('CBO')),
+    cboDesc:      get('CBO.1'),
     cid:          get('CID-10'),
-    cidDesc:      clean(valores[findCol(headers, 'CID-10.1')]),
-    tipoAcidente: get('Tipo do Acidente'),
-    parteCorpo:   get('Parte Corpo Atingida'),
-    natureza:     get('Natureza da Lesão'),
-    agente:       get('Agente  Causador  Acidente'),
-    sexo:         get('Sexo'),
-    idade:        calcIdade(get('Data Nascimento'), ano),
-    obito:        parseObito(get(campoObito), formato),
+    cidDesc:      get('CID-10.1'),
+    accidentType: get('Tipo do Acidente'),
+    bodyPart:     get('Parte Corpo Atingida'),
+    injuryNature: get('Natureza da Lesão'),
+    causingAgent: get('Agente  Causador  Acidente'),
+    sex:          get('Sexo'),
+    age:          calcAge(get('Data Nascimento'), year),
+    death:        parseDeath(get(deathColumn), format),
     cnae:         get('CNAE2.0 Empregador'),
   };
 }
 
-function lineParse(line) {
-  const resultado = [];
-  let atual = '';
-  let dentroDe = false;
+// Divide uma linha separada por ";" respeitando campos entre aspas
+function parseLine(line) {
+  const result   = [];
+  let current    = '';
+  let inQuotes   = false;
 
   for (let i = 0; i < line.length; i++) {
     const ch = line[i];
     if (ch === '"') {
-      dentroDe = !dentroDe;
-    } else if (ch === ';' && !dentroDe) {
-      resultado.push(atual);
-      atual = '';
+      inQuotes = !inQuotes;
+    } else if (ch === ';' && !inQuotes) {
+      result.push(current);
+      current = '';
     } else {
-      atual += ch;
+      current += ch;
     }
   }
-  resultado.push(atual);
-  return resultado;
+  result.push(current);
+  return result;
 }
 
+// Os arquivos do INSS são codificados em ISO-8859-1 (Latin-1)
 async function fetchLatin1(url) {
-  console.log(`[csvLoader] Fetch: ${url}`);
-  const resp = await fetch(url);
-  if (!resp.ok) throw new Error(`HTTP ${resp.status} - ${url}`);
-  const buffer  = await resp.arrayBuffer();
+  console.log(`[csvHandler] Fetch: ${url}`);
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`HTTP ${response.status} - ${url}`);
+  const buffer  = await response.arrayBuffer();
   const decoder = new TextDecoder('iso-8859-1');
-  console.log(`[csvLoader] OK: ${(buffer.byteLength / 1024).toFixed(1)} KB`);
+  console.log(`[csvHandler] OK: ${(buffer.byteLength / 1024).toFixed(1)} KB`);
   return decoder.decode(buffer);
 }
 
-async function loadCSVs(onProgress) {
-  let totalRegistros = 0;
-
-  console.group('[csvLoader] Iniciando carga');
-
-  for (const arquivo of CSV_FILES) {
-    try {
-      const texto   = await fetchLatin1(arquivo);
-      const linhas  = texto.split('\n');
-      const headers = lineParse(linhas[0].replace(/\r/g, ''));
-      const formato = detectFormat(headers);
-
-      let inseridos  = 0;
-      let ignorados  = 0;
-
-      for (let i = 1; i < linhas.length; i++) {
-        const linha = linhas[i].replace(/\r/g, '').trim();
-        if (!linha) continue;
-
-        const valores = lineParse(linha);
-        if (valores.length < 10) { ignorados++; continue; }
-
-        const registro = converteLinha(valores, headers, formato);
-        if (!registro.municipio || !registro.ano) { ignorados++; continue; }
-
-        const heapIndex = heap.size;
-        heap.insert(registro);
-        trie.insert(registro.municipio, heapIndex);
-
-        totalRegistros++;
-        inseridos++;
-      }
-
-      console.log(`[csvLoader] ${arquivo.split('/').pop()} → ${inseridos} inseridos, ${ignorados} ignorados`);
-      if (onProgress) onProgress(arquivo, totalRegistros);
-
-    } catch (err) {
-      console.warn(`[csvLoader] Falha em ${arquivo}:`, err.message);
-    }
-  }
-
-  console.log(`[csvLoader] Total: ${totalRegistros} | Heap.size=${heap.size}`);
-  console.groupEnd();
-  return totalRegistros;
-}
-
-function generateFileList(path, startYear, startMonth, endYear, endMonth) {
+// Gera a lista de arquivos mensais (AAAAMM) entre duas datas, inclusive
+function generateFileList(prefix, startYear, startMonth, endYear, endMonth) {
   const files = [];
-  let currentYear = startYear;
-  let currentMonth = startMonth;
+  let year  = startYear;
+  let month = startMonth;
 
-  while (currentYear < endYear || (currentYear === endYear && currentMonth <= endMonth)) {
+  while (year < endYear || (year === endYear && month <= endMonth)) {
+    files.push(`${prefix}${year}${String(month).padStart(2, '0')}.csv`);
 
-    const formattedMonth = currentMonth.toString().padStart(2, '0');
-    
-    files.push(`${path}${currentYear}${formattedMonth}.csv`);
-
-    currentMonth++;
-    
-    if (currentMonth > 12) {
-      currentMonth = 1;
-      currentYear++;
+    month++;
+    if (month > 12) {
+      month = 1;
+      year++;
     }
   }
   return files;
 }
 
+// Arquivos já processados: evita baixar/inserir o mesmo mês duas vezes
 const loadedFiles = new Set();
 
-async function loadPeriod(anoInicio, anoFim, onProgress) {
+// Carrega no Heap/Trie todos os meses do período que ainda não estão em memória
+async function loadPeriod(startYear, endYear, onProgress) {
   let newRecords = 0;
-  
-  const allFiles = generateFileList('data/D.SDA.PDA.005.CAT.', anoInicio, 1, anoFim, 12);
-  const filesRemaining = allFiles.filter(file => !loadedFiles.has(file));
-  
-  if (filesRemaining.length === 0) return 0;
 
-  for (const file of filesRemaining) {
+  const allFiles     = generateFileList(CSV_PATH_PREFIX, startYear, 1, endYear, 12);
+  const pendingFiles = allFiles.filter(file => !loadedFiles.has(file));
+
+  if (pendingFiles.length === 0) return 0;
+
+  for (const file of pendingFiles) {
     try {
-      const text = await fetchLatin1(file);
-      const lines = text.split('\n');
-      
-      // Correções aplicadas: referenciando o array lines e a função lineParse correta
-      const headers = lineParse(lines[0].replace(/\r/g, ''));
-      const format = detectFormat(headers);
+      const text    = await fetchLatin1(file);
+      const lines   = text.split('\n');
+      const headers = parseLine(lines[0].replace(/\r/g, ''));
+      const format  = detectFormat(headers);
 
       for (let i = 1; i < lines.length; i++) {
-        const lineStr = lines[i].replace(/\r/g, '').trim();
-        if (!lineStr) continue;
+        const line = lines[i].replace(/\r/g, '').trim();
+        if (!line) continue;
 
-        const values = lineParse(lineStr);
+        const values = parseLine(line);
         if (values.length < 10) continue;
 
-        // Correção: remoção dos parênteses duplos
         const record = convertLine(values, headers, format);
-        if (!record.municipio || !record.ano) continue;
+        if (!record.city || !record.year) continue;
 
         const heapIndex = heap.size;
         heap.insert(record);
-        trie.insert(record.municipio, heapIndex);
+        trie.insert(record.city, heapIndex);
 
         newRecords++;
       }
-      
+
       loadedFiles.add(file);
 
-      if (onProgress) {
-        onProgress(file, heap.size);
-      }
+      if (onProgress) onProgress(file, heap.size);
+
     } catch (err) {
       if (err.message.includes('404')) {
-        // Tratamento elegante do 404: avisa no log e marca como lido para não repetir a requisição
-        console.info(`[csvLoader] Mês ainda não publicado ignorado: ${file}`);
+        // Mês ainda não publicado: registra no log e marca como lido para não repetir a requisição
+        console.info(`[csvHandler] Mês ainda não publicado ignorado: ${file}`);
         loadedFiles.add(file);
       } else {
-        // Erros de sintaxe ou leitura não serão mais engolidos em silêncio
-        console.error(`[csvLoader] Erro crítico ao processar ${file}:`, err);
+        console.error(`[csvHandler] Erro crítico ao processar ${file}:`, err);
       }
     }
   }
-  
-  if (newRecords > 0) unificarMunicipios();
+
+  if (newRecords > 0) unifyCityNames();
 
   return newRecords;
 }
@@ -266,51 +220,51 @@ async function loadPeriod(anoInicio, anoFim, onProgress) {
 //   1) para cada código, o nome canônico é o MAIOR já visto (o não truncado);
 //   2) linhas sem código são resolvidas pelo par (nome normalizado + UF).
 // ------------------------------------------------------------
-const nomePorCodigo   = new Map(); // codigo IBGE -> nome canônico
-const codigoPorNomeUF = new Map(); // "NOME NORMALIZADO|UF" -> codigo IBGE
+const canonicalNameByCode = new Map(); // código IBGE -> nome canônico
+const codeByNameAndState  = new Map(); // "NOME NORMALIZADO|UF" -> código IBGE
 
-function codigoValido(cod) {
-  return /^\d{6,7}$/.test(cod) && !/^0+$/.test(cod);
+function isValidCityCode(code) {
+  return /^\d{6,7}$/.test(code) && !/^0+$/.test(code);
 }
 
-function chaveNomeUF(nome, uf) {
-  return `${trie._normalize(nome)}|${uf}`;
+function nameStateKey(name, state) {
+  return `${normalizeText(name)}|${state}`;
 }
 
-function unificarMunicipios() {
+function unifyCityNames() {
   // 1ª passada: aprende o melhor nome de cada código
   for (let i = 0; i < heap.size; i++) {
-    const r = heap.getByIndex(i);
-    if (!codigoValido(r.municipioCod)) continue;
+    const record = heap.getByIndex(i);
+    if (!isValidCityCode(record.cityCode)) continue;
 
-    const atual = nomePorCodigo.get(r.municipioCod);
-    if (!atual || r.municipio.length > atual.length) {
-      nomePorCodigo.set(r.municipioCod, r.municipio);
+    const current = canonicalNameByCode.get(record.cityCode);
+    if (!current || record.city.length > current.length) {
+      canonicalNameByCode.set(record.cityCode, record.city);
     }
-    codigoPorNomeUF.set(chaveNomeUF(r.municipio, r.uf), r.municipioCod);
+    codeByNameAndState.set(nameStateKey(record.city, record.state), record.cityCode);
   }
 
   // 2ª passada: aplica o nome canônico aos registros
-  let corrigidos = 0;
+  let fixedCount = 0;
   for (let i = 0; i < heap.size; i++) {
-    const r = heap.getByIndex(i);
+    const record = heap.getByIndex(i);
 
-    let cod = r.municipioCod;
-    if (!codigoValido(cod)) {
-      cod = codigoPorNomeUF.get(chaveNomeUF(r.municipio, r.uf));
-      if (!cod) continue;
-      r.municipioCod = cod;
+    let code = record.cityCode;
+    if (!isValidCityCode(code)) {
+      code = codeByNameAndState.get(nameStateKey(record.city, record.state));
+      if (!code) continue;
+      record.cityCode = code;
     }
 
-    const canonico = nomePorCodigo.get(cod);
-    if (canonico && canonico !== r.municipio) {
-      r.municipio = canonico;
-      trie.insert(canonico, i); // permite achar o registro pelo nome completo
-      corrigidos++;
+    const canonical = canonicalNameByCode.get(code);
+    if (canonical && canonical !== record.city) {
+      record.city = canonical;
+      trie.insert(canonical, i); // permite achar o registro pelo nome completo
+      fixedCount++;
     }
   }
 
-  if (corrigidos > 0) {
-    console.log(`[csvLoader] ${corrigidos} registros com nome de município unificado`);
+  if (fixedCount > 0) {
+    console.log(`[csvHandler] ${fixedCount} registros com nome de município unificado`);
   }
 }

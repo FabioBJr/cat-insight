@@ -1,173 +1,171 @@
+// ============================================================
+// search.js - Busca por prefixo e agregações (por município e nacional)
+// ============================================================
+
+const UNKNOWN_OCCUPATION = 'Profissões não identificadas/registradas';
+const AGE_GROUP_ORDER    = ['< 18', '18-24', '25-34', '35-44', '45-54', '55-64', '65+'];
+
 // Retorna o nome legível de um CBO - "784205" → "Alimentador de linha de produção"
 // Tenta exato, depois com zero à esquerda, depois retorna o código como fallback
-function getCboNome(codigo) {
-  if (!codigo) return 'Profissões não identificadas/registradas';
-  
-  if (typeof CBO_MAP === 'undefined') return codigo; // cboMap.js não carregado
-  
-  const c6 = String(codigo).padStart(6, '0');
-  let nome = CBO_MAP[c6] || CBO_MAP[codigo] || codigo;
-  
-  if (nome === '000000' || String(nome).includes('{ñ') || String(nome).toLowerCase() === 'ignorado') {
-    return 'Profissões não identificadas/registradas';
+function getCboName(code) {
+  if (!code) return UNKNOWN_OCCUPATION;
+
+  if (typeof CBO_MAP === 'undefined') return code; // cboMap.js não carregado
+
+  const paddedCode = String(code).padStart(6, '0');
+  const name = CBO_MAP[paddedCode] || CBO_MAP[code] || code;
+
+  if (name === '000000' || String(name).includes('{ñ') || String(name).toLowerCase() === 'ignorado') {
+    return UNKNOWN_OCCUPATION;
   }
-  
-  return nome;
+
+  return name;
 }
 
 // Busca por prefixo usando a Trie - retorna registros AGREGADOS (sem duplicatas)
-function searchByMunicipio(prefix) {
-  if (!prefix || !prefix.trim()) return window.municipiosAgregados || [];
+function searchByCity(prefix) {
+  if (!prefix || !prefix.trim()) return aggregatedCities;
 
   const indices = trie.searchPrefix(prefix.trim());
-  const vistos  = new Set();
-  const resultado = [];
+  const seen    = new Set();
+  const result  = [];
 
-  for (const idx of indices) {
-    const bruto = heap.getByIndex(idx);
-    if (!bruto || vistos.has(bruto.municipio)) continue;
-    vistos.add(bruto.municipio);
-    const agregado = (window.municipiosAgregados || []).find(
-      m => m.municipio === bruto.municipio
-    );
-    if (agregado) resultado.push(agregado);
+  for (const index of indices) {
+    const raw = heap.getByIndex(index);
+    if (!raw || seen.has(raw.city)) continue;
+    seen.add(raw.city);
+    const aggregated = aggregatedCities.find(c => c.city === raw.city);
+    if (aggregated) result.push(aggregated);
   }
-  return resultado;
+  return result;
 }
-
 
 function formatNumber(n) {
   if (n === null || n === undefined) return '-';
   return Number(n).toLocaleString('pt-BR');
 }
 
-function agregaPorMunicipio(anoInicio = 2022, anoFim = new Date().getFullYear()) {
-  console.group('[search] agregaPorMunicipio');
-  const mapa = new Map();
+// Agrupa os registros do Heap por município dentro do período [startYear, endYear]
+function aggregateByCity(startYear, endYear) {
+  console.group('[search] aggregateByCity');
+  const cities = new Map();
 
   for (let i = 0; i < heap.size; i++) {
-    const r = heap.getByIndex(i);
+    const record = heap.getByIndex(i);
 
-    // Filter by selected period
-    if (r.ano < anoInicio || r.ano > anoFim) continue;
+    // Filtra pelo período selecionado
+    if (record.year < startYear || record.year > endYear) continue;
 
-    if (!mapa.has(r.municipio)) {
-      mapa.set(r.municipio, {
-        municipio:    r.municipio,
-        municipioCod: r.municipioCod,
-        uf:           r.uf,
-        acidentes:    0,
-        obitos:       0,
-        porAno:       {},
-        porCBO:       {},
+    if (!cities.has(record.city)) {
+      cities.set(record.city, {
+        city:     record.city,
+        cityCode: record.cityCode,
+        state:    record.state,
+        accidents: 0,
+        deaths:    0,
+        byYear:    {},
+        byCbo:     {},
       });
     }
 
-    const entry = mapa.get(r.municipio);
-    entry.acidentes++;
-    if (r.obito) entry.obitos++;
+    const entry = cities.get(record.city);
+    entry.accidents++;
+    if (record.death) entry.deaths++;
 
-    if (r.ano) {
-      entry.porAno[r.ano] = (entry.porAno[r.ano] || 0) + 1;
+    if (record.year) {
+      entry.byYear[record.year] = (entry.byYear[record.year] || 0) + 1;
     }
 
-    if (r.cbo) {
-      entry.porCBO[r.cbo] = (entry.porCBO[r.cbo] || 0) + 1;
+    if (record.cbo) {
+      entry.byCbo[record.cbo] = (entry.byCbo[record.cbo] || 0) + 1;
     }
   }
 
-  mapa.forEach(entry => {
-    const cbos = Object.entries(entry.porCBO);
+  cities.forEach(entry => {
+    // Profissão mais afetada no município
+    const cbos = Object.entries(entry.byCbo);
     if (cbos.length > 0) {
       cbos.sort((a, b) => b[1] - a[1]);
-      const codigoTop = cbos[0][0];
-      entry.profissaoCodigo  = codigoTop;
-      entry.profissaoNome    = getCboNome(codigoTop); // nome legível
+      entry.topOccupationName = getCboName(cbos[0][0]);
     } else {
-      entry.profissaoCodigo = '-';
-      entry.profissaoNome   = '-';
+      entry.topOccupationName = '-';
     }
-    entry.anos     = Object.keys(entry.porAno).sort();
-    entry.evolucao = entry.anos.map(ano => entry.porAno[ano]);
+
+    // Anos com registros (usado na coluna "Período" da tabela)
+    entry.years = Object.keys(entry.byYear).sort();
 
     // Série completa do período filtrado (anos sem registros = 0) para o gráfico do modal
-    entry.anosPeriodo = [];
-    for (let a = anoInicio; a <= anoFim; a++) entry.anosPeriodo.push(a);
-    entry.evolucaoPeriodo = entry.anosPeriodo.map(a => entry.porAno[a] || 0);
+    entry.periodYears = [];
+    for (let y = startYear; y <= endYear; y++) entry.periodYears.push(y);
+    entry.periodCounts = entry.periodYears.map(y => entry.byYear[y] || 0);
   });
 
-  console.log(`[search] ${mapa.size} municípios agregados`);
-  let n = 0;
-  mapa.forEach((v, k) => {
-    if (n++ < 2) console.log(`  ${k}: ${v.acidentes} acidentes | ${v.obitos} óbitos | profissão: ${v.profissaoNome}`);
-  });
+  console.log(`[search] ${cities.size} municípios agregados`);
   console.groupEnd();
-  return mapa;
+  return cities;
 }
 
-function faixaEtaria(idade) {
-  if (idade === null || idade < 0 || idade > 120) return null;
-  if (idade < 18)  return '< 18';
-  if (idade <= 24) return '18-24';
-  if (idade <= 34) return '25-34';
-  if (idade <= 44) return '35-44';
-  if (idade <= 54) return '45-54';
-  if (idade <= 64) return '55-64';
+function getAgeGroup(age) {
+  if (age === null || age < 0 || age > 120) return null;
+  if (age < 18)  return '< 18';
+  if (age <= 24) return '18-24';
+  if (age <= 34) return '25-34';
+  if (age <= 44) return '35-44';
+  if (age <= 54) return '45-54';
+  if (age <= 64) return '55-64';
   return '65+';
 }
 
-function agregaNacional(anoInicio = 2022, anoFim = new Date().getFullYear()) {
-  console.group('[search] agregaNacional');
-  const porCBO   = {};
-  const porFaixa = {};
-  let   totalObitos = 0;
-  let   anoMin = Infinity, anoMax = -Infinity;
-  let   totalRegistrosFiltrados = 0;
+// Totais nacionais, top profissões e distribuição por faixa etária no período
+function aggregateNational(startYear, endYear) {
+  console.group('[search] aggregateNational');
+  const byOccupation = {};
+  const byAgeGroup   = {};
+  let totalRecords   = 0;
+  let totalDeaths    = 0;
+  let minYear = Infinity, maxYear = -Infinity;
 
-  const ordemFaixas = ['< 18', '18-24', '25-34', '35-44', '45-54', '55-64', '65+'];
-  ordemFaixas.forEach(f => porFaixa[f] = 0);
+  AGE_GROUP_ORDER.forEach(group => byAgeGroup[group] = 0);
 
   for (let i = 0; i < heap.size; i++) {
-    const r = heap.getByIndex(i);
+    const record = heap.getByIndex(i);
 
-    // Filter by selected period
-    if (r.ano < anoInicio || r.ano > anoFim) continue;
+    // Filtra pelo período selecionado
+    if (record.year < startYear || record.year > endYear) continue;
 
-    totalRegistrosFiltrados++;
+    totalRecords++;
+    if (record.death) totalDeaths++;
 
-    if (r.obito) totalObitos++;
-    if (r.ano) {
-      if (r.ano < anoMin) anoMin = r.ano;
-      if (r.ano > anoMax) anoMax = r.ano;
+    if (record.year) {
+      if (record.year < minYear) minYear = record.year;
+      if (record.year > maxYear) maxYear = record.year;
     }
 
-    if (r.cbo) {
-      const nome  = getCboNome(r.cbo);
-      const chave = nome || r.cbo;
-      if (!porCBO[chave]) porCBO[chave] = { label: chave, valor: 0 };
-      porCBO[chave].valor++;
+    if (record.cbo) {
+      const label = getCboName(record.cbo) || record.cbo;
+      if (!byOccupation[label]) byOccupation[label] = { label, value: 0 };
+      byOccupation[label].value++;
     }
 
-    const faixa = faixaEtaria(r.idade);
-    if (faixa) porFaixa[faixa]++;
+    const group = getAgeGroup(record.age);
+    if (group) byAgeGroup[group]++;
   }
 
-  const topCBOs = Object.values(porCBO)
-    .sort((a, b) => b.valor - a.valor)
+  const topOccupations = Object.values(byOccupation)
+    .sort((a, b) => b.value - a.value)
     .slice(0, 8);
 
-  const faixas = ordemFaixas.map(label => ({ label, valor: porFaixa[label] }));
+  const ageGroups = AGE_GROUP_ORDER.map(label => ({ label, value: byAgeGroup[label] }));
 
-  const periodo = anoMin === Infinity ? '-' : (anoMin === anoMax ? String(anoMin) : `${anoMin}–${anoMax}`);
+  const period = minYear === Infinity ? '-' : formatPeriodLabel(minYear, maxYear);
 
-  console.log(`[search] total=${totalRegistrosFiltrados} | óbitos=${totalObitos} | período=${periodo}`);
+  console.log(`[search] total=${totalRecords} | óbitos=${totalDeaths} | período=${period}`);
   console.groupEnd();
 
-  return {
-    topCBOs,
-    faixas,
-    totalRegistros: totalRegistrosFiltrados,
-    totalObitos,
-    periodo,
-  };
+  return { topOccupations, ageGroups, totalRecords, totalDeaths, period };
+}
+
+// "2024" ou "2022–2026"
+function formatPeriodLabel(start, end) {
+  return start === end ? String(start) : `${start}–${end}`;
 }

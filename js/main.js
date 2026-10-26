@@ -1,71 +1,69 @@
-// Captura o ano atual do sistema (ex: 2026) uma única vez no topo do arquivo
-const ANO_ATUAL = new Date().getFullYear();
+// ============================================================
+// main.js - Estado da aplicação, filtros de período e inicialização
+// ============================================================
 
-let globalMaxProfissao = 0;
-let globalMaxFaixa = 0;
+// Ano atual do sistema (ex: 2026), capturado uma única vez
+const CURRENT_YEAR = new Date().getFullYear();
+const MIN_YEAR     = 2022;
 
 // Período atualmente exibido (inclusivo). Padrão: apenas o ano atual
-const ANO_MIN = 2022;
-let periodoSelecionado = { inicio: ANO_ATUAL, fim: ANO_ATUAL };
+let selectedPeriod = { start: CURRENT_YEAR, end: CURRENT_YEAR };
 
-// 1. Função Mestre de Atualização Visual
-function atualizarDashboard() {
+// Resultado das agregações do período selecionado (lido por search.js e ui.js)
+let aggregatedCities = [];
+let nationalData     = null;
+
+// Maior valor já exibido em cada gráfico: mantém a mesma escala entre filtros,
+// para que um período menor apareça visualmente menor
+let maxOccupationValue = 0;
+let maxAgeGroupValue   = 0;
+
+// 1. Atualização visual completa do dashboard
+function refreshDashboard() {
   updateLoading('Processando agregações e ordenando...');
-  
-  const { inicio: anoInicio, fim: anoFim } = periodoSelecionado;
+
+  const { start, end } = selectedPeriod;
 
   // Agrega e ordena os dados do Heap filtrando pelo período selecionado
-  const municipios = Array.from(agregaPorMunicipio(anoInicio, anoFim).values());
-  window.municipiosAgregados = quickSortMunicipios(municipios);
-  window.dadosNacionais      = agregaNacional(anoInicio, anoFim);
+  aggregatedCities = quickSortCities(Array.from(aggregateByCity(start, end).values()));
+  nationalData     = aggregateNational(start, end);
 
-  // Manda a UI se desenhar de novo
-  atualizarCards(window.dadosNacionais);
-  renderTable(window.municipiosAgregados);
+  updateStatCards(nationalData);
+  renderTable(aggregatedCities);
 
-  if (window.dadosNacionais.topCBOs.length > 0) {
-    const currentMaxProfissao = Math.max(...window.dadosNacionais.topCBOs.map(d => d.valor), 0);
-    if (currentMaxProfissao > globalMaxProfissao) {
-      globalMaxProfissao = currentMaxProfissao;
-    }
-    
-    const currentMaxFaixa = Math.max(...window.dadosNacionais.faixas.map(d => d.valor), 0);
-    if (currentMaxFaixa > globalMaxFaixa) {
-      globalMaxFaixa = currentMaxFaixa;
-    }
-  }
+  // Escala "high-water mark": só cresce
+  const { topOccupations, ageGroups } = nationalData;
+  maxOccupationValue = Math.max(maxOccupationValue, ...topOccupations.map(d => d.value));
+  maxAgeGroupValue   = Math.max(maxAgeGroupValue,   ...ageGroups.map(d => d.value));
 
-  initCharts(window.dadosNacionais.topCBOs, window.dadosNacionais.faixas, globalMaxProfissao, globalMaxFaixa);
-  
-  // Se o campo de busca tiver algo, precisamos atualizar a busca
+  renderCharts(topOccupations, ageGroups, maxOccupationValue, maxAgeGroupValue);
+
+  // Se o campo de busca tiver algo, reaplica a busca sobre os novos dados
   const searchInput = document.getElementById('search-input');
-  if (searchInput && searchInput.value.trim() !== '') {
-    // Chama runSearch se a função estiver global, ou simula o clique do botão
-    const searchBtn = document.getElementById('search-btn');
-    if (searchBtn) searchBtn.click();
-  }
+  if (searchInput && searchInput.value.trim() !== '') runSearch();
 
   hideLoading();
 }
 
-// 2. Configuração dos Filtros de Período
+// 2. Filtros de período
 // Carrega (se necessário) os CSVs do intervalo e redesenha o dashboard
-function aplicarPeriodo(inicio, fim) {
-  periodoSelecionado = { inicio, fim };
-  document.dispatchEvent(new Event('periodo-alterado'));
+function applyPeriod(start, end) {
+  selectedPeriod = { start, end };
+  document.dispatchEvent(new Event('period-changed'));
 
   showLoading();
   updateLoading('Verificando dados necessários...');
 
+  // setTimeout permite que a tela de carregamento seja pintada antes do processamento
   setTimeout(async () => {
     try {
-      const rotulo = inicio === fim ? `${inicio}` : `${inicio}–${fim}`;
-      await loadPeriod(inicio, fim, (arquivo, total) => {
-        updateLoading(`Processando registros de ${rotulo}... (${total.toLocaleString('pt-BR')})`);
+      const label = formatPeriodLabel(start, end);
+      await loadPeriod(start, end, (file, total) => {
+        updateLoading(`Processando registros de ${label}... (${total.toLocaleString('pt-BR')})`);
       });
 
-      // Sempre atualiza o dashboard, pois o filtro mudou e precisamos recalcular as agregações (mesmo que não tenha carregado CSV novo)
-      atualizarDashboard();
+      // Sempre atualiza: mesmo sem CSV novo, as agregações mudam com o filtro
+      refreshDashboard();
 
     } catch (error) {
       console.error('[main] Erro ao carregar período:', error);
@@ -74,121 +72,111 @@ function aplicarPeriodo(inicio, fim) {
   }, 50);
 }
 
-// Marca visualmente qual controle está ativo (botões de atalho OU seletor personalizado)
-function marcarControleAtivo(elemento) {
+// Marca visualmente qual controle está ativo (botão de atalho OU seletor personalizado)
+function setActiveControl(element) {
   document.querySelectorAll('.period-btn.active, .period-custom.active')
     .forEach(el => el.classList.remove('active'));
-  elemento?.classList.add('active');
+  element?.classList.add('active');
 }
 
-function initFiltros() {
-  const botoes      = document.querySelectorAll('.period-btn');
+function initPeriodFilters() {
+  const buttons     = document.querySelectorAll('.period-btn');
   const custom      = document.getElementById('period-custom');
-  const selectIni   = document.getElementById('period-start');
-  const selectFim   = document.getElementById('period-end');
+  const startSelect = document.getElementById('period-start');
+  const endSelect   = document.getElementById('period-end');
+  const applyButton = document.getElementById('period-apply');
 
   // Atalhos: do ano do botão até o ano atual
-  botoes.forEach(btn => {
-    btn.addEventListener('click', () => {
-      if (btn.classList.contains('active')) return;
+  buttons.forEach(button => {
+    button.addEventListener('click', () => {
+      if (button.classList.contains('active')) return;
 
-      const anoInicio = parseInt(btn.getAttribute('data-period'));
-      marcarControleAtivo(btn);
+      const start = parseInt(button.dataset.period, 10);
+      setActiveControl(button);
 
       // Mantém o seletor personalizado sincronizado com o atalho escolhido
-      if (selectIni && selectFim) {
-        selectIni.value = anoInicio;
-        selectFim.value = ANO_ATUAL;
+      if (startSelect && endSelect) {
+        startSelect.value = start;
+        endSelect.value   = CURRENT_YEAR;
       }
 
-      aplicarPeriodo(anoInicio, ANO_ATUAL);
+      applyPeriod(start, CURRENT_YEAR);
     });
   });
 
-  if (!custom || !selectIni || !selectFim) return;
+  if (!custom || !startSelect || !endSelect) return;
 
-  // Popula os anos disponíveis (ANO_MIN até o ano atual)
-  for (let ano = ANO_MIN; ano <= ANO_ATUAL; ano++) {
-    selectIni.add(new Option(ano, ano));
-    selectFim.add(new Option(ano, ano));
+  // Popula os anos disponíveis (MIN_YEAR até o ano atual)
+  for (let year = MIN_YEAR; year <= CURRENT_YEAR; year++) {
+    startSelect.add(new Option(year, year));
+    endSelect.add(new Option(year, year));
   }
-  selectIni.value = periodoSelecionado.inicio;
-  selectFim.value = periodoSelecionado.fim;
+  startSelect.value = selectedPeriod.start;
+  endSelect.value   = selectedPeriod.end;
 
   // Seletor personalizado: alterar o ano apenas "prepara" o período.
   // O filtro só é aplicado ao clicar em "Aplicar".
-  const btnAplicar = document.getElementById('period-apply');
 
   // Habilita o botão somente se a seleção difere do período atualmente exibido
-  const atualizarBotaoAplicar = () => {
-    if (!btnAplicar) return;
-    const igual = parseInt(selectIni.value) === periodoSelecionado.inicio &&
-                  parseInt(selectFim.value) === periodoSelecionado.fim;
-    btnAplicar.disabled = igual;
+  const updateApplyButton = () => {
+    if (!applyButton) return;
+    applyButton.disabled =
+      parseInt(startSelect.value, 10) === selectedPeriod.start &&
+      parseInt(endSelect.value, 10)   === selectedPeriod.end;
   };
 
-  // Garante inicio <= fim ajustando o outro campo
-  const aoMudar = (alterado) => {
-    const inicio = parseInt(selectIni.value);
-    const fim    = parseInt(selectFim.value);
+  // Garante início <= fim ajustando o outro campo
+  const onSelectChange = (changed) => {
+    const start = parseInt(startSelect.value, 10);
+    const end   = parseInt(endSelect.value, 10);
 
-    if (inicio > fim) {
-      if (alterado === 'inicio') selectFim.value = inicio;
-      else                       selectIni.value = fim;
+    if (start > end) {
+      if (changed === 'start') endSelect.value   = start;
+      else                     startSelect.value = end;
     }
-    atualizarBotaoAplicar();
+    updateApplyButton();
   };
 
-  selectIni.addEventListener('change', () => aoMudar('inicio'));
-  selectFim.addEventListener('change', () => aoMudar('fim'));
+  startSelect.addEventListener('change', () => onSelectChange('start'));
+  endSelect.addEventListener('change',   () => onSelectChange('end'));
 
-  btnAplicar?.addEventListener('click', () => {
-    marcarControleAtivo(custom);
-    aplicarPeriodo(parseInt(selectIni.value), parseInt(selectFim.value));
+  applyButton?.addEventListener('click', () => {
+    setActiveControl(custom);
+    applyPeriod(parseInt(startSelect.value, 10), parseInt(endSelect.value, 10));
   });
 
-  // Reavalia o estado do botão sempre que o período ativo mudar (atalhos ou aplicar)
-  document.addEventListener('periodo-alterado', atualizarBotaoAplicar);
-  atualizarBotaoAplicar();
+  // Reavalia o estado do botão sempre que o período ativo mudar (atalho ou aplicar)
+  document.addEventListener('period-changed', updateApplyButton);
+  updateApplyButton();
 }
 
-// 3. O Fluxo de Inicialização Principal
+// 3. Fluxo de inicialização principal
 async function init() {
-  console.group('[main] Inicializando aplicação');
-  
-  initModal();
+  initModals();
   initAutocomplete();
-  initFiltros(); 
+  initPeriodFilters();
 
   showLoading();
-  updateLoading(`Iniciando sistema com dados de ${ANO_ATUAL}...`);
+  updateLoading(`Iniciando sistema com dados de ${CURRENT_YEAR}...`);
 
   try {
-    // CARGA INICIAL DIRETA: Carrega de ANO_ATUAL até ANO_ATUAL
-    const novos = await loadPeriod(ANO_ATUAL, ANO_ATUAL, (arquivo, total) => {
+    // Carga inicial: apenas o ano atual (os demais são carregados sob demanda pelo filtro)
+    const newRecords = await loadPeriod(CURRENT_YEAR, CURRENT_YEAR, (file, total) => {
       updateLoading(`Carregando a base de dados... (${total.toLocaleString('pt-BR')})`);
     });
-    
-    console.log(`[main] Carga inicial concluída: ${novos} novos registros.`);
 
-    // Garante que o botão correspondente ao ano atual inicie com a cor laranja
-    const btnInicial = document.querySelector(`.period-btn[data-period="${ANO_ATUAL}"]`) 
-                       || document.querySelector('.period-btn');
-    if (btnInicial) {
-      document.querySelector('.period-btn.active')?.classList.remove('active');
-      btnInicial.classList.add('active');
-    }
+    console.log(`[main] Carga inicial concluída: ${newRecords} novos registros.`);
+
+    // Garante que o botão do ano atual inicie destacado
+    setActiveControl(document.querySelector(`.period-btn[data-period="${CURRENT_YEAR}"]`));
 
     // Só depois que os dados estão na memória, desenhamos a tela
-    atualizarDashboard();
+    refreshDashboard();
 
   } catch (err) {
     console.error('[main] Erro crítico na carga inicial:', err);
     hideLoading();
   }
-
-  console.groupEnd();
 }
 
-// Dispara o motor principal
 init();

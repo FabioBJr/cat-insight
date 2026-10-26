@@ -3,17 +3,17 @@
 // ============================================================
 
 // Paginação
-const PAGINA_SIZE = 10;
-let paginaAtual  = 1;
-let registrosAtuais = [];
+const PAGE_SIZE = 10;
+let currentPage = 1;
+let currentRows = [];
 
-function renderTable(records) {
-  registrosAtuais = records || [];
-  paginaAtual = 1;
-  renderPagina();
+function renderTable(rows) {
+  currentRows = rows || [];
+  currentPage = 1;
+  renderPage();
 }
 
-function renderPagina() {
+function renderPage() {
   const tbody   = document.getElementById('table-body');
   const countEl = document.getElementById('results-count');
 
@@ -21,7 +21,7 @@ function renderPagina() {
 
   tbody.innerHTML = '';
 
-  if (registrosAtuais.length === 0) {
+  if (currentRows.length === 0) {
     tbody.innerHTML = `
       <tr><td colspan="5">
         <div class="empty-state">
@@ -30,107 +30,114 @@ function renderPagina() {
         </div>
       </td></tr>`;
     if (countEl) countEl.textContent = 'Nenhum resultado';
-    renderControlesPaginacao(0);
+    renderPagination(0);
     return;
   }
 
-  const totalPaginas = Math.ceil(registrosAtuais.length / PAGINA_SIZE);
-  paginaAtual = Math.max(1, Math.min(paginaAtual, totalPaginas));
+  const totalPages = Math.ceil(currentRows.length / PAGE_SIZE);
+  currentPage = Math.max(1, Math.min(currentPage, totalPages));
 
-  const inicio = (paginaAtual - 1) * PAGINA_SIZE;
-  const fim    = Math.min(inicio + PAGINA_SIZE, registrosAtuais.length);
-  const pagina = registrosAtuais.slice(inicio, fim);
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const end   = Math.min(start + PAGE_SIZE, currentRows.length);
+  const page  = currentRows.slice(start, end);
 
-  pagina.forEach(r => {
-    const tr   = document.createElement('tr');
+  page.forEach(row => {
+    const years = row.years;
+    const tr = document.createElement('tr');
     tr.style.cursor = 'pointer';
     tr.innerHTML = `
-      <td class="td-municipio">${r.municipio}</td>
-      <td><span class="td-uf">${r.uf || '-'}</span></td>
-      <td class="td-acidentes">${formatNumber(r.acidentes)}</td>
-      <td class="td-fatalidades">${r.obitos ?? '-'}</td>
-      <td class="td-periodo">${r.anos && r.anos.length ? r.anos[0] + '–' + r.anos[r.anos.length - 1] : '-'}</td>
+      <td class="td-municipio">${row.city}</td>
+      <td><span class="td-uf">${row.state || '-'}</span></td>
+      <td class="td-acidentes">${formatNumber(row.accidents)}</td>
+      <td class="td-fatalidades">${row.deaths ?? '-'}</td>
+      <td class="td-periodo">${years && years.length ? years[0] + '–' + years[years.length - 1] : '-'}</td>
     `;
-    tr.addEventListener('click', () => openModal(r));
+    tr.addEventListener('click', () => openModal(row));
     tbody.appendChild(tr);
   });
 
-  const total = window.municipiosAgregados ? window.municipiosAgregados.length : registrosAtuais.length;
-  const filtrado = registrosAtuais.length < total ? ` de ${registrosAtuais.length} filtrados` : '';
-  if (countEl) countEl.textContent =
-    `Exibindo ${inicio + 1}–${fim} de ${total} municípios${filtrado}`;
+  const total    = aggregatedCities.length || currentRows.length;
+  const filtered = currentRows.length < total ? ` de ${currentRows.length} filtrados` : '';
+  if (countEl) countEl.textContent = `Exibindo ${start + 1}–${end} de ${total} municípios${filtered}`;
 
-  renderControlesPaginacao(totalPaginas);
-  console.log(`[ui] página ${paginaAtual}/${totalPaginas} - ${pagina.length} linhas`);
+  renderPagination(totalPages);
 }
 
-function renderControlesPaginacao(totalPaginas) {
-  let ctrl = document.getElementById('paginacao');
-  if (!ctrl) {
-    ctrl = document.createElement('div');
-    ctrl.id = 'paginacao';
-    ctrl.className = 'paginacao';
-    document.querySelector('.table-wrapper').after(ctrl);
+function renderPagination(totalPages) {
+  let container = document.getElementById('paginacao');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'paginacao';
+    container.className = 'paginacao';
+    document.querySelector('.table-wrapper').after(container);
   }
 
-  if (totalPaginas <= 1) { ctrl.innerHTML = ''; return; }
+  if (totalPages <= 1) { container.innerHTML = ''; return; }
 
-  const btnAnterior = `<button class="pag-btn" id="pag-anterior" ${paginaAtual === 1 ? 'disabled' : ''}>← Anterior</button>`;
-  const btnProximo  = `<button class="pag-btn" id="pag-proximo"  ${paginaAtual === totalPaginas ? 'disabled' : ''}>Próximo →</button>`;
-  const info        = `<span class="pag-info">Página ${paginaAtual} de ${totalPaginas}</span>`;
-  ctrl.innerHTML    = btnAnterior + info + btnProximo;
+  const prevBtn = `<button class="pag-btn" id="pag-anterior" ${currentPage === 1 ? 'disabled' : ''}>← Anterior</button>`;
+  const nextBtn = `<button class="pag-btn" id="pag-proximo"  ${currentPage === totalPages ? 'disabled' : ''}>Próximo →</button>`;
+  const info    = `<span class="pag-info">Página ${currentPage} de ${totalPages}</span>`;
+  container.innerHTML = prevBtn + info + nextBtn;
+
+  // Muda de página e rola até o topo da tabela
+  const goToPage = (page) => {
+    currentPage = page;
+    renderPage();
+    window.scrollTo({ top: document.querySelector('.results-section').offsetTop - 80, behavior: 'smooth' });
+  };
 
   document.getElementById('pag-anterior').addEventListener('click', () => {
-    if (paginaAtual > 1) { paginaAtual--; renderPagina(); window.scrollTo({ top: document.querySelector('.results-section').offsetTop - 80, behavior: 'smooth' }); }
+    if (currentPage > 1) goToPage(currentPage - 1);
   });
   document.getElementById('pag-proximo').addEventListener('click', () => {
-    if (paginaAtual < totalPaginas) { paginaAtual++; renderPagina(); window.scrollTo({ top: document.querySelector('.results-section').offsetTop - 80, behavior: 'smooth' }); }
+    if (currentPage < totalPages) goToPage(currentPage + 1);
   });
 }
 
-function atualizarCards(dadosNacionais) {
-  const total   = document.getElementById('stat-total');
-  const obitos  = document.getElementById('stat-obitos');
-  const periodo = document.getElementById('stat-periodo');
+function updateStatCards(nationalData) {
+  const total  = document.getElementById('stat-total');
+  const deaths = document.getElementById('stat-obitos');
+  const period = document.getElementById('stat-periodo');
 
-  if (total)   total.textContent   = formatNumber(dadosNacionais.totalRegistros);
-  if (obitos)  obitos.textContent  = formatNumber(dadosNacionais.totalObitos);
-  if (periodo) periodo.textContent = dadosNacionais.periodo;
-
-  console.log('[ui] cards atualizados:', dadosNacionais.totalRegistros, dadosNacionais.totalObitos, dadosNacionais.periodo);
+  if (total)  total.textContent  = formatNumber(nationalData.totalRecords);
+  if (deaths) deaths.textContent = formatNumber(nationalData.totalDeaths);
+  if (period) period.textContent = nationalData.period;
 }
 
+// ------------------------------------------------------------
+// Autocomplete (busca por prefixo na Trie)
+// ------------------------------------------------------------
+const MAX_SUGGESTIONS = 6;
 let activeIndex = -1;
 
 function initAutocomplete() {
   const input    = document.getElementById('search-input');
   const dropdown = document.getElementById('autocomplete-dropdown');
-  const btn      = document.getElementById('search-btn');
+  const button   = document.getElementById('search-btn');
 
-  if (!input || !dropdown || !btn) {
+  if (!input || !dropdown || !button) {
     console.error('[ui] initAutocomplete: elemento não encontrado');
     return;
   }
 
   input.addEventListener('input', () => {
-    const q = input.value.trim();
-    if (!q) { closeDropdown(); return; }
-    showDropdown(trie.searchPrefix(q), q);
+    const query = input.value.trim();
+    if (!query) { closeDropdown(); return; }
+    showDropdown(trie.searchPrefix(query), query);
   });
 
   input.addEventListener('keydown', (e) => {
     const items = dropdown.querySelectorAll('.autocomplete-item');
     if (!items.length) return;
-    if (e.key === 'ArrowDown') { e.preventDefault(); activeIndex = Math.min(activeIndex + 1, items.length - 1); }
-    else if (e.key === 'ArrowUp')   { e.preventDefault(); activeIndex = Math.max(activeIndex - 1, 0); }
-    else if (e.key === 'Enter')     { e.preventDefault(); activeIndex >= 0 ? selectItem(Number(items[activeIndex].dataset.idx)) : runSearch(); return; }
-    else if (e.key === 'Escape')    { closeDropdown(); return; }
+    if (e.key === 'ArrowDown')    { e.preventDefault(); activeIndex = Math.min(activeIndex + 1, items.length - 1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); activeIndex = Math.max(activeIndex - 1, 0); }
+    else if (e.key === 'Enter')   { e.preventDefault(); activeIndex >= 0 ? selectSuggestion(Number(items[activeIndex].dataset.idx)) : runSearch(); return; }
+    else if (e.key === 'Escape')  { closeDropdown(); return; }
     items.forEach((item, i) => item.classList.toggle('active', i === activeIndex));
   });
 
-  btn.addEventListener('click', runSearch);
+  button.addEventListener('click', runSearch);
   document.addEventListener('click', (e) => { if (!e.target.closest('.search-wrapper')) closeDropdown(); });
-  console.log('[ui] initAutocomplete: ok');
 }
 
 function showDropdown(indices, query) {
@@ -140,43 +147,47 @@ function showDropdown(indices, query) {
 
   if (!indices.length) { closeDropdown(); return; }
 
-  const vistos = new Set();
-  const itens  = [];
-  for (const idx of indices) {
-    const bruto = heap.getByIndex(idx);
-    if (!bruto || vistos.has(bruto.municipio)) continue;
-    vistos.add(bruto.municipio);
-    itens.push({ idx, municipio: bruto.municipio, uf: bruto.uf });
-    if (itens.length >= 6) break;
+  // A Trie retorna um índice por registro: mantém apenas um por município
+  const seen  = new Set();
+  const items = [];
+  for (const index of indices) {
+    const raw = heap.getByIndex(index);
+    if (!raw || seen.has(raw.city)) continue;
+    seen.add(raw.city);
+    items.push({ index, city: raw.city, state: raw.state });
+    if (items.length >= MAX_SUGGESTIONS) break;
   }
 
-  itens.forEach(({ idx, municipio, uf }) => {
-    const norm      = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
-    const mStart    = norm(municipio).indexOf(norm(query));
-    let highlighted = municipio;
-    if (mStart !== -1) {
-      highlighted = municipio.slice(0, mStart) +
-        `<em>${municipio.slice(mStart, mStart + query.length)}</em>` +
-        municipio.slice(mStart + query.length);
+  const normalizedQuery = normalizeText(query);
+
+  items.forEach(({ index, city, state }) => {
+    // Destaca o trecho digitado (comparação sem acentos)
+    const matchStart = normalizeText(city).indexOf(normalizedQuery);
+    let highlighted  = city;
+    if (matchStart !== -1) {
+      highlighted = city.slice(0, matchStart) +
+        `<em>${city.slice(matchStart, matchStart + query.length)}</em>` +
+        city.slice(matchStart + query.length);
     }
     const item = document.createElement('div');
     item.className   = 'autocomplete-item';
-    item.dataset.idx = idx;
-    item.innerHTML   = `<span class="autocomplete-item-name">${highlighted}</span><span class="autocomplete-item-uf">${uf || ''}</span>`;
-    item.addEventListener('mousedown', (e) => { e.preventDefault(); selectItem(idx); });
+    item.dataset.idx = index;
+    item.innerHTML   = `<span class="autocomplete-item-name">${highlighted}</span><span class="autocomplete-item-uf">${state || ''}</span>`;
+    item.addEventListener('mousedown', (e) => { e.preventDefault(); selectSuggestion(index); });
     dropdown.appendChild(item);
   });
 
   dropdown.classList.add('visible');
 }
 
-function selectItem(idx) {
-  const bruto    = heap.getByIndex(idx);
-  if (!bruto) return;
-  const agregado = (window.municipiosAgregados || []).find(m => m.municipio === bruto.municipio) || bruto;
-  document.getElementById('search-input').value = agregado.municipio;
+function selectSuggestion(heapIndex) {
+  const raw = heap.getByIndex(heapIndex);
+  if (!raw) return;
+  const aggregated = aggregatedCities.find(c => c.city === raw.city);
+  if (!aggregated) return; // cidade sem registros no período selecionado
+  document.getElementById('search-input').value = aggregated.city;
   closeDropdown();
-  renderTable([agregado]);
+  renderTable([aggregated]);
 }
 
 function closeDropdown() {
@@ -187,40 +198,37 @@ function closeDropdown() {
 
 function runSearch() {
   closeDropdown();
-  const q = document.getElementById('search-input').value.trim();
-  console.log(`[ui] runSearch: "${q}"`);
-  renderTable(searchByMunicipio(q));
+  const query = document.getElementById('search-input').value.trim();
+  renderTable(searchByCity(query));
 }
 
+// ------------------------------------------------------------
 // Modal da cidade
-function openModal(record) {
-  console.log('[ui] openModal:', record.municipio);
+// ------------------------------------------------------------
+function openModal(row) {
   const overlay = document.getElementById('modal-overlay');
 
-  document.getElementById('modal-title').textContent       = record.municipio;
-  document.getElementById('modal-uf').textContent          = record.uf || '-';
-  document.getElementById('modal-acidentes').textContent   = formatNumber(record.acidentes);
-  document.getElementById('modal-fatalidades').textContent = record.obitos ?? '-';
-  document.getElementById('modal-profissao').textContent   = record.profissaoNome || record.profissaoMaisAfetada || '-';
+  document.getElementById('modal-title').textContent       = row.city;
+  document.getElementById('modal-uf').textContent          = row.state || '-';
+  document.getElementById('modal-acidentes').textContent   = formatNumber(row.accidents);
+  document.getElementById('modal-fatalidades').textContent = row.deaths ?? '-';
+  document.getElementById('modal-profissao').textContent   = row.topOccupationName || '-';
+
+  const chartTitle = document.getElementById('modal-chart-title');
+  if (chartTitle) {
+    chartTitle.textContent = `Evolução anual de acidentes (${formatPeriodLabel(selectedPeriod.start, selectedPeriod.end)})`;
+  }
 
   overlay.classList.add('visible');
   document.body.style.overflow = 'hidden';
 
-  const anosGrafico = record.anosPeriodo ?? record.anos;
-  const valoresGrafico = record.evolucaoPeriodo ?? record.evolucao;
-
-  const tituloGrafico = document.getElementById('modal-chart-title');
-  if (tituloGrafico) {
-    const { inicio, fim } = periodoSelecionado;
-    tituloGrafico.textContent = `Evolução anual de acidentes (${inicio === fim ? inicio : inicio + '–' + fim})`;
-  }
-
+  // Desenha após o modal estar visível, para o canvas já ter dimensões
   requestAnimationFrame(() => {
     const canvas = document.getElementById('modal-chart');
-    if (valoresGrafico?.length && anosGrafico?.length) {
-      drawLineChart(canvas, valoresGrafico, anosGrafico);
+    if (row.periodCounts?.length) {
+      drawLineChart(canvas, row.periodCounts, row.periodYears);
     } else {
-      console.warn('[ui] openModal: sem dados de evolução para', record.municipio);
+      console.warn('[ui] openModal: sem dados de evolução para', row.city);
     }
   });
 }
@@ -230,48 +238,47 @@ function closeModal() {
   document.body.style.overflow = '';
 }
 
-function initModalSobre() {
+function initAboutModal() {
   const overlay  = document.getElementById('modal-sobre-overlay');
-  const btnAbrir = document.getElementById('btn-sobre');
-  const btnFechar = document.getElementById('modal-sobre-close');
-  if (!overlay || !btnAbrir) return;
+  const openBtn  = document.getElementById('btn-sobre');
+  const closeBtn = document.getElementById('modal-sobre-close');
+  if (!overlay || !openBtn || !closeBtn) return;
 
-  btnAbrir.addEventListener('click', () => {
+  const close = () => {
+    overlay.classList.remove('visible');
+    document.body.style.overflow = '';
+  };
+
+  openBtn.addEventListener('click', () => {
     overlay.classList.add('visible');
     document.body.style.overflow = 'hidden';
   });
-  btnFechar.addEventListener('click', () => {
-    overlay.classList.remove('visible');
-    document.body.style.overflow = '';
-  });
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) {
-      overlay.classList.remove('visible');
-      document.body.style.overflow = '';
-    }
-  });
+  closeBtn.addEventListener('click', close);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
 }
 
-function initModal() {
+function initModals() {
   const overlay  = document.getElementById('modal-overlay');
-  const btnClose = document.getElementById('modal-close');
-  if (!overlay || !btnClose) { console.error('[ui] initModal: elemento não encontrado'); return; }
+  const closeBtn = document.getElementById('modal-close');
+  if (!overlay || !closeBtn) { console.error('[ui] initModals: elemento não encontrado'); return; }
   overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
-  btnClose.addEventListener('click', closeModal);
+  closeBtn.addEventListener('click', closeModal);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
-  console.log('[ui] initModal: ok');
 
-  initModalSobre();
+  initAboutModal();
 }
 
+// ------------------------------------------------------------
+// Tela de carregamento
+// ------------------------------------------------------------
 function showLoading() {
   const el = document.getElementById('loading-overlay');
   if (el) el.classList.add('visible');
 }
 
-function updateLoading(msg) {
+function updateLoading(message) {
   const el = document.getElementById('loading-message');
-  if (el) el.textContent = msg;
+  if (el) el.textContent = message;
 }
 
 function hideLoading() {
@@ -279,27 +286,29 @@ function hideLoading() {
   if (el) el.classList.remove('visible');
 }
 
-let redesenharGraficos = null;
-let resizeRegistrado   = false;
+// ------------------------------------------------------------
+// Gráficos principais
+// ------------------------------------------------------------
+let redrawCharts       = null;
+let resizeListenerSet  = false;
 
-function initCharts(topCBOs, faixas, maxProfissao = null, maxFaixa = null) {
-  const canvasProfissoes = document.getElementById('chart-profissoes');
-  const canvasFaixa      = document.getElementById('chart-faixa');
-  if (!canvasProfissoes || !canvasFaixa) { console.error('[ui] initCharts: canvas não encontrado'); return; }
-  if (!topCBOs?.length) { console.warn('[ui] initCharts: topCBOs vazio'); return; }
-  if (!faixas?.length)  { console.warn('[ui] initCharts: faixas vazio');  return; }
+function renderCharts(topOccupations, ageGroups, maxOccupation = null, maxAgeGroup = null) {
+  const occupationCanvas = document.getElementById('chart-profissoes');
+  const ageGroupCanvas   = document.getElementById('chart-faixa');
+  if (!occupationCanvas || !ageGroupCanvas) { console.error('[ui] renderCharts: canvas não encontrado'); return; }
+  if (!topOccupations?.length) { console.warn('[ui] renderCharts: topOccupations vazio'); return; }
+  if (!ageGroups?.length)      { console.warn('[ui] renderCharts: ageGroups vazio');      return; }
 
   function draw() {
-    drawBarChart(canvasProfissoes, topCBOs, '#f59e0b', maxProfissao);
-    drawVerticalBarChart(canvasFaixa, faixas, '#60a5fa', maxFaixa);
+    drawBarChart(occupationCanvas, topOccupations, '#f59e0b', maxOccupation);
+    drawVerticalBarChart(ageGroupCanvas, ageGroups, '#60a5fa', maxAgeGroup);
   }
   draw();
 
   // Guarda o desenho mais recente; o listener de resize é registrado uma única vez
-  redesenharGraficos = draw;
-  if (!resizeRegistrado) {
-    initChartResize(() => redesenharGraficos && redesenharGraficos());
-    resizeRegistrado = true;
+  redrawCharts = draw;
+  if (!resizeListenerSet) {
+    initChartResize(() => redrawCharts && redrawCharts());
+    resizeListenerSet = true;
   }
-  console.log('[ui] initCharts: ok');
 }
