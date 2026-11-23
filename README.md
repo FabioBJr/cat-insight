@@ -46,7 +46,7 @@ Este projeto propõe uma plataforma web que permite **consultar, filtrar e visua
 
 ## Como usar
 
-1. Acesse a URL da aplicação publicada no [GitHub Pages](https://github.com/FabioBJr/cat-insight).
+1. Acesse a URL da aplicação publicada no [GitHub Pages](https://fabiobjr.github.io/cat-insight/).
 2. Aguarde o carregamento dos arquivos CSV.
 3. Explore o panorama nacional nas primeiras seções.
 4. Use a barra de busca para procurar um município.
